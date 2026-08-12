@@ -110,13 +110,7 @@ export function CartDrawer({
           : undefined,
     });
     setOpen(false);
-    toast.success("¡Pedido confirmado!", {
-      description: orderType === "delivery"
-        ? "Tu pedido será entregado pronto."
-        : orderType === "dine-in"
-        ? `Pedido para Mesa ${table?.number || defaultTableNumber} enviado.`
-        : "Tu pedido está listo para recoger.",
-    });
+    toast.success("¡Pedido confirmado!");
   };
 
   const canConfirm =
