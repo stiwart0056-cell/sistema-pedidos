@@ -9,138 +9,109 @@ const DEFAULT_TABLES: Table[] = Array.from({ length: 10 }, (_, i) => ({
   status: "free" as const,
 }));
 
+const STORAGE_KEY = "mr-toasted-tables";
+
+function loadLocal(): Table[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return DEFAULT_TABLES;
+}
+
+function saveLocal(tables: Table[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tables));
+}
+
 function mapRow(row: any): Table {
   return {
     id: row.id,
     number: row.number,
     capacity: row.capacity ?? 4,
-    status: row.status === "occupied" ? "occupied" : "free",
+    status: (row.status === "occupied" ? "occupied" : "free") as Table["status"],
   };
 }
 
 export function useTables() {
-  const [tables, setTables] = useState<Table[]>(DEFAULT_TABLES);
-  const [loading, setLoading] = useState(true);
+  const [tables, setTables] = useState<Table[]>(loadLocal);
 
   useEffect(() => {
-    let mounted = true;
-    supabase
-      .from("tables")
-      .select("*")
-      .order("number", { ascending: true })
-      .then(({ data, error }) => {
-        if (!mounted) return;
-        if (error) {
-          console.error("[useTables] load error:", error);
-          const raw = localStorage.getItem("mr-toasted-tables");
-          if (raw) {
-            try {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed) && parsed.length > 0) setTables(parsed);
-            } catch {}
-          }
-        } else if (data && data.length > 0) {
-          setTables(data.map(mapRow));
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("tables")
+          .select("*")
+          .order("number", { ascending: true });
+        if (data && data.length > 0) {
+          const mapped = data.map(mapRow);
+          setTables(mapped);
+          saveLocal(mapped);
         }
-        setLoading(false);
-      });
-
-    const channel = supabase
-      .channel("tables_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tables" },
-        () => {
-          supabase
-            .from("tables")
-            .select("*")
-            .order("number", { ascending: true })
-            .then(({ data }) => {
-              if (data) setTables(data.map(mapRow));
-            });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
+      } catch (e) {
+        console.error("[useTables] load failed:", e);
+      }
+    })();
   }, []);
 
   const toggleStatus = useCallback(async (id: string) => {
     const table = tables.find((t) => t.id === id);
     if (!table) return;
-    const newStatus = table.status === "free" ? "occupied" : "free";
+    const newStatus = (table.status === "free" ? "occupied" : "free") as Table["status"];
+    const updated = tables.map((t) =>
+      t.id === id ? { ...t, status: newStatus } : t
+    ) as Table[];
+    setTables(updated);
+    saveLocal(updated);
 
-    setTables((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t))
-    );
-
-    const { error } = await supabase
-      .from("tables")
-      .update({ status: newStatus })
-      .eq("id", id);
-
-    if (error) {
-      console.error("[useTables] toggle error:", error);
-      const { data } = await supabase
-        .from("tables")
-        .select("*")
-        .order("number", { ascending: true });
-      if (data) setTables(data.map(mapRow));
+    try {
+      await supabase.from("tables").update({ status: newStatus }).eq("id", id);
+    } catch (e) {
+      console.error("[useTables] toggle failed:", e);
     }
   }, [tables]);
 
   const addTable = useCallback(async () => {
-    const nextNum =
-      tables.length > 0 ? Math.max(...tables.map((t) => t.number)) + 1 : 1;
-    const newTable = {
+    const nextNum = tables.length > 0 ? Math.max(...tables.map((t) => t.number)) + 1 : 1;
+    const newTable: Table = {
+      id: `local-${Date.now()}`,
       number: nextNum,
       capacity: 4,
-      status: "free" as const,
+      status: "free",
     };
+    const updated = [...tables, newTable];
+    setTables(updated);
+    saveLocal(updated);
 
-    setTables((prev) => [
-      ...prev,
-      { id: `temp-${Date.now()}`, ...newTable },
-    ]);
-
-    const { data, error } = await supabase
-      .from("tables")
-      .insert(newTable)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[useTables] add error:", error);
-      const { data: refreshed } = await supabase
+    try {
+      const { data } = await supabase
         .from("tables")
-        .select("*")
-        .order("number", { ascending: true });
-      if (refreshed) setTables(refreshed.map(mapRow));
-    } else if (data) {
-      setTables((prev) =>
-        prev.map((t) =>
-          t.id.startsWith("temp-") && t.number === nextNum ? mapRow(data) : t
-        )
-      );
+        .insert({ number: nextNum, capacity: 4, status: "free" })
+        .select()
+        .single();
+      if (data) {
+        setTables((prev) =>
+          prev.map((t) => (t.id === newTable.id ? mapRow(data) : t))
+        );
+      }
+    } catch (e) {
+      console.error("[useTables] add failed:", e);
     }
   }, [tables]);
 
   const removeTable = useCallback(async (id: string) => {
-    setTables((prev) => prev.filter((t) => t.id !== id));
+    const updated = tables.filter((t) => t.id !== id);
+    setTables(updated);
+    saveLocal(updated);
 
-    const { error } = await supabase.from("tables").delete().eq("id", id);
-    if (error) {
-      console.error("[useTables] remove error:", error);
-      const { data } = await supabase
-        .from("tables")
-        .select("*")
-        .order("number", { ascending: true });
-      if (data) setTables(data.map(mapRow));
+    try {
+      await supabase.from("tables").delete().eq("id", id);
+    } catch (e) {
+      console.error("[useTables] remove failed:", e);
     }
-  }, []);
+  }, [tables]);
 
-  return { tables, toggleStatus, addTable, removeTable, loading };
+  return { tables, toggleStatus, addTable, removeTable };
 }

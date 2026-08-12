@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import type { Database } from "@/lib/database.types";
 
 export interface RestaurantConfig {
   name: string;
@@ -17,101 +16,62 @@ const DEFAULT_CONFIG: RestaurantConfig = {
   slogan: "¡El mejor sabor de la ciudad!",
 };
 
+const STORAGE_KEY = "mr-toasted-restaurant";
 const CONFIG_ID = "00000000-0000-0000-0000-000000000001";
 
-function mapRowToConfig(
-  row: Database["public"]["Tables"]["restaurant_config"]["Row"] | null
-): RestaurantConfig {
-  if (!row) return DEFAULT_CONFIG;
-  return {
-    name: row.name || DEFAULT_CONFIG.name,
-    phone: row.phone || DEFAULT_CONFIG.phone,
-    address: row.address || DEFAULT_CONFIG.address,
-    logo: row.logo || undefined,
-    slogan: row.slogan || undefined,
-  };
+function loadLocal(): RestaurantConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+  } catch {}
+  return DEFAULT_CONFIG;
+}
+
+function saveLocal(cfg: RestaurantConfig) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
 }
 
 export function useRestaurantConfig() {
-  const [config, setConfig] = useState<RestaurantConfig>(DEFAULT_CONFIG);
-  const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState<RestaurantConfig>(loadLocal);
 
-  // Load initial config
   useEffect(() => {
-    let mounted = true;
-    supabase
-      .from("restaurant_config")
-      .select("*")
-      .eq("id", CONFIG_ID)
-      .single()
-      .then(({ data, error }) => {
-        if (!mounted) return;
-        if (error) {
-          console.error("[useRestaurantConfig] load error:", error);
-          // fallback to localStorage
-          const raw = localStorage.getItem("mr-toasted-restaurant");
-          if (raw) {
-            try {
-              setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(raw) });
-            } catch {}
-          }
-        } else {
-          setConfig(mapRowToConfig(data));
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("restaurant_config")
+          .select("*")
+          .eq("id", CONFIG_ID)
+          .single();
+        if (data) {
+          const mapped = {
+            name: data.name || DEFAULT_CONFIG.name,
+            phone: data.phone || DEFAULT_CONFIG.phone,
+            address: data.address || DEFAULT_CONFIG.address,
+            logo: data.logo || undefined,
+            slogan: data.slogan || undefined,
+          };
+          setConfig(mapped);
+          saveLocal(mapped);
         }
-        setLoading(false);
-      });
-
-    // Realtime subscription
-    const channel = supabase
-      .channel("restaurant_config_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "restaurant_config",
-          filter: `id=eq.${CONFIG_ID}`,
-        },
-        (payload) => {
-          if (payload.new) {
-            setConfig(mapRowToConfig(payload.new as any));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
+      } catch (e) {
+        console.error("[useRestaurantConfig] load failed:", e);
+      }
+    })();
   }, []);
 
   const updateConfig = useCallback(async (changes: Partial<RestaurantConfig>) => {
-    setConfig((prev) => {
-      const updated = { ...prev, ...changes };
-      // Optimistic update
-      return updated;
-    });
+    const updated = { ...config, ...changes };
+    setConfig(updated);
+    saveLocal(updated);
 
-    const { error } = await supabase
-      .from("restaurant_config")
-      .upsert({
-        id: CONFIG_ID,
-        ...changes,
-        updated_at: new Date().toISOString(),
-      });
-
-    if (error) {
-      console.error("[useRestaurantConfig] update error:", error);
-      // Revert: read from server again
-      const { data } = await supabase
+    try {
+      await supabase
         .from("restaurant_config")
-        .select("*")
-        .eq("id", CONFIG_ID)
-        .single();
-      setConfig(mapRowToConfig(data));
+        .upsert({ id: CONFIG_ID, ...changes, updated_at: new Date().toISOString() });
+    } catch (e) {
+      console.error("[useRestaurantConfig] save failed:", e);
     }
-  }, []);
+  }, [config]);
 
-  return { config, updateConfig, loading };
+  return { config, updateConfig };
 }

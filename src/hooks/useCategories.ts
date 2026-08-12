@@ -13,111 +13,81 @@ const DEFAULT_CATEGORIES = [
   "Morir Soñando",
 ];
 
+const STORAGE_KEY = "mr-toasted-categories";
+
+function loadLocal(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return DEFAULT_CATEGORIES;
+}
+
+function saveLocal(cats: string[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cats));
+}
+
 export function useCategories() {
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<string[]>(loadLocal);
 
-  // Load initial categories
   useEffect(() => {
-    let mounted = true;
-    supabase
-      .from("categories")
-      .select("name")
-      .order("sort_order", { ascending: true })
-      .then(({ data, error }) => {
-        if (!mounted) return;
-        if (error) {
-          console.error("[useCategories] load error:", error);
-          // fallback to localStorage
-          const raw = localStorage.getItem("mr-toasted-categories");
-          if (raw) {
-            try {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setCategories(parsed);
-              }
-            } catch {}
-          }
-        } else if (data && data.length > 0) {
-          setCategories(data.map((c) => c.name));
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("categories")
+          .select("name")
+          .order("sort_order", { ascending: true });
+        if (data && data.length > 0) {
+          const names = data.map((c: any) => c.name);
+          setCategories(names);
+          saveLocal(names);
         }
-        setLoading(false);
-      });
-
-    // Realtime
-    const channel = supabase
-      .channel("categories_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "categories" },
-        () => {
-          // Refresh list on any change
-          supabase
-            .from("categories")
-            .select("name")
-            .order("sort_order", { ascending: true })
-            .then(({ data }) => {
-              if (data && data.length > 0) setCategories(data.map((c) => c.name));
-            });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
+      } catch (e) {
+        console.error("[useCategories] load failed:", e);
+      }
+    })();
   }, []);
 
   const addCategory = useCallback(async (name: string) => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || categories.includes(trimmed)) return;
+    const updated = [...categories, trimmed];
+    setCategories(updated);
+    saveLocal(updated);
 
-    // Optimistic
-    setCategories((prev) => {
-      if (prev.includes(trimmed)) return prev;
-      return [...prev, trimmed];
-    });
-
-    const { error } = await supabase
-      .from("categories")
-      .insert({ name: trimmed, sort_order: 999 })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[useCategories] add error:", error);
-      // refresh from server
-      const { data } = await supabase
-        .from("categories")
-        .select("name")
-        .order("sort_order", { ascending: true });
-      if (data) setCategories(data.map((c) => c.name));
+    try {
+      await supabase.from("categories").insert({ name: trimmed, sort_order: 999 });
+    } catch (e) {
+      console.error("[useCategories] add failed:", e);
     }
-  }, []);
+  }, [categories]);
 
   const removeCategory = useCallback(async (name: string) => {
-    setCategories((prev) => prev.filter((c) => c !== name));
+    const updated = categories.filter((c) => c !== name);
+    setCategories(updated);
+    saveLocal(updated);
 
-    const { error } = await supabase.from("categories").delete().eq("name", name);
-    if (error) {
-      console.error("[useCategories] remove error:", error);
-      const { data } = await supabase
-        .from("categories")
-        .select("name")
-        .order("sort_order", { ascending: true });
-      if (data) setCategories(data.map((c) => c.name));
+    try {
+      await supabase.from("categories").delete().eq("name", name);
+    } catch (e) {
+      console.error("[useCategories] remove failed:", e);
     }
-  }, []);
+  }, [categories]);
 
   const reorderCategories = useCallback(async (newOrder: string[]) => {
     setCategories(newOrder);
-    // Update sort_order for each
-    const updates = newOrder.map((name, idx) =>
-      supabase.from("categories").update({ sort_order: idx }).eq("name", name)
-    );
-    await Promise.all(updates);
+    saveLocal(newOrder);
+    try {
+      for (let i = 0; i < newOrder.length; i++) {
+        await supabase.from("categories").update({ sort_order: i }).eq("name", newOrder[i]);
+      }
+    } catch (e) {
+      console.error("[useCategories] reorder failed:", e);
+    }
   }, []);
 
-  return { categories, addCategory, removeCategory, reorderCategories, loading };
+  return { categories, addCategory, removeCategory, reorderCategories };
 }
