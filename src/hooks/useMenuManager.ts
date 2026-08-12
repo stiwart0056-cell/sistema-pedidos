@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { defaultMenuItems } from "@/data/defaultMenu";
 
 const STORAGE_KEY = "mr-toasted-menu";
-const SEED_KEY = "mr-toasted-menu-seeded";
+const SEED_KEY = "mr-toasted-menu-seeded-v2";
 
 function loadLocal(): MenuItem[] {
   try {
@@ -40,13 +40,19 @@ export function useMenuManager() {
           .from("menu_items")
           .select("*")
           .order("created_at", { ascending: true });
-        if (data && data.length > 0) {
+        if (data && data.length > 0 && localStorage.getItem(SEED_KEY)) {
           const mapped = data.map(mapRow);
           setItems(mapped);
           saveLocal(mapped);
-        } else if (loadLocal().length === 0 && !localStorage.getItem(SEED_KEY)) {
-          // Seed default menu items
+        } else if (!localStorage.getItem(SEED_KEY)) {
+          // Force re-seed: clear old items and insert correct menu from PDF
           localStorage.setItem(SEED_KEY, "true");
+          localStorage.removeItem(STORAGE_KEY);
+          
+          // Clear existing items from Supabase
+          await supabase.from("menu_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          
+          const seeded: MenuItem[] = [];
           for (const item of defaultMenuItems) {
             const { data: inserted } = await supabase
               .from("menu_items")
@@ -63,24 +69,16 @@ export function useMenuManager() {
               .select()
               .single();
             if (inserted) {
-              setItems((prev) => [...prev, mapRow(inserted)]);
+              seeded.push(mapRow(inserted));
             }
           }
-          // Refresh full list after seed
-          const { data: refreshed } = await supabase
-            .from("menu_items")
-            .select("*")
-            .order("created_at", { ascending: true });
-          if (refreshed) {
-            const mapped = refreshed.map(mapRow);
-            setItems(mapped);
-            saveLocal(mapped);
-          }
+          setItems(seeded);
+          saveLocal(seeded);
         }
       } catch (e) {
         console.error("[useMenuManager] load failed:", e);
         // Fallback: seed from defaults to localStorage if Supabase is down
-        if (loadLocal().length === 0 && !localStorage.getItem(SEED_KEY)) {
+        if (!localStorage.getItem(SEED_KEY)) {
           localStorage.setItem(SEED_KEY, "true");
           const seeded = defaultMenuItems.map((it, idx) => ({
             ...it,
