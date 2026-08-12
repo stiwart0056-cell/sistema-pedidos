@@ -1,0 +1,402 @@
+import { useState } from "react";
+import { useMenuManager } from "@/hooks/useMenuManager";
+import { categories, type MenuItem, type MenuVariant } from "@/types";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Search, Save, Trash2, Plus, Image, X } from "lucide-react";
+
+export function MenuEditorPage() {
+  const { items, addItem, updateItem, deleteItem, addVariant, removeVariant } = useMenuManager();
+  const [search, setSearch] = useState("");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const [newItem, setNewItem] = useState<Partial<MenuItem>>({
+    category: categories[0],
+    price: 0,
+    description: "",
+    name: "",
+    image: "",
+  });
+  const [newVariants, setNewVariants] = useState<MenuVariant[]>([]);
+
+  const filtered = items.filter(
+    (m) =>
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.category.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleAddProduct = () => {
+    if (!newItem.name) return;
+    addItem({
+      name: newItem.name,
+      description: newItem.description || "",
+      price: newItem.price || 0,
+      category: newItem.category || categories[0],
+      image: newItem.image || undefined,
+      variants: newVariants.length > 0 ? newVariants : undefined,
+    });
+    setNewItem({
+      category: categories[0],
+      price: 0,
+      description: "",
+      name: "",
+      image: "",
+    });
+    setNewVariants([]);
+    setIsAddOpen(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-3xl font-bold text-foreground">
+          Editor de Menú
+        </h1>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 rounded-full font-display font-bold">
+              <Plus className="h-4 w-4" />
+              Agregar Producto
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl">Nuevo Producto</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label>Nombre</Label>
+                <Input
+                  value={newItem.name}
+                  onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Ej: Mr Super Toast"
+                />
+              </div>
+              <div>
+                <Label>Descripción</Label>
+                <Input
+                  value={newItem.description}
+                  onChange={(e) =>
+                    setNewItem((p) => ({ ...p, description: e.target.value }))
+                  }
+                  placeholder="Ingredientes..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Categoría</Label>
+                  <select
+                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                    value={newItem.category}
+                    onChange={(e) =>
+                      setNewItem((p) => ({ ...p, category: e.target.value }))
+                    }
+                  >
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Precio (RD$)</Label>
+                  <Input
+                    type="number"
+                    value={newItem.price || ""}
+                    onChange={(e) =>
+                      setNewItem((p) => ({
+                        ...p,
+                        price: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>URL de Imagen</Label>
+                <Input
+                  value={newItem.image || ""}
+                  onChange={(e) =>
+                    setNewItem((p) => ({ ...p, image: e.target.value }))
+                  }
+                  placeholder="https://... o /food/photo.jpg"
+                />
+              </div>
+
+              <div>
+                <Label>Variantes (opcional)</Label>
+                <div className="space-y-2">
+                  {newVariants.map((v, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input
+                        placeholder="Nombre"
+                        value={v.name}
+                        onChange={(e) => {
+                          const copy = [...newVariants];
+                          copy[i].name = e.target.value;
+                          setNewVariants(copy);
+                        }}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Precio"
+                        value={v.price || ""}
+                        onChange={(e) => {
+                          const copy = [...newVariants];
+                          copy[i].price = parseInt(e.target.value) || 0;
+                          setNewVariants(copy);
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setNewVariants((p) => p.filter((_, idx) => idx !== i))
+                        }
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setNewVariants((p) => [...p, { name: "", price: 0 }])
+                    }
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Agregar variante
+                  </Button>
+                </div>
+              </div>
+
+              <Button className="w-full rounded-full" onClick={handleAddProduct}>
+                Guardar Producto
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar producto..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="rounded-xl pl-10"
+        />
+      </div>
+
+      <div className="space-y-6">
+        {categories.map((cat) => {
+          const catItems = filtered.filter((m) => m.category === cat);
+          if (catItems.length === 0) return null;
+          return (
+            <div key={cat}>
+              <h2 className="mb-3 font-display text-xl font-bold text-primary">
+                {cat}
+              </h2>
+              <div className="space-y-3">
+                {catItems.map((item) => (
+                  <EditableItemRow
+                    key={item.id}
+                    item={item}
+                    onUpdate={updateItem}
+                    onDelete={deleteItem}
+                    onAddVariant={addVariant}
+                    onRemoveVariant={removeVariant}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EditableItemRow({
+  item,
+  onUpdate,
+  onDelete,
+  onAddVariant,
+  onRemoveVariant,
+}: {
+  item: MenuItem;
+  onUpdate: (id: string, changes: Partial<MenuItem>) => void;
+  onDelete: (id: string) => void;
+  onAddVariant: (id: string, v: MenuVariant) => void;
+  onRemoveVariant: (id: string, name: string) => void;
+}) {
+  const [imgUrl, setImgUrl] = useState(item.image || "");
+  const [price, setPrice] = useState(item.price ?? 0);
+  const [name, setName] = useState(item.name);
+  const [desc, setDesc] = useState(item.description);
+  const [variantName, setVariantName] = useState("");
+  const [variantPrice, setVariantPrice] = useState(0);
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border bg-white p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        {/* Image preview & URL */}
+        <div className="flex flex-col gap-2">
+          <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-muted">
+            {item.image ? (
+              <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <Image className="h-6 w-6" />
+              </div>
+            )}
+          </div>
+          <div className="flex gap-1">
+            <Input
+              value={imgUrl}
+              onChange={(e) => setImgUrl(e.target.value)}
+              placeholder="URL imagen"
+              className="h-8 w-40 text-xs"
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={() => onUpdate(item.id, { image: imgUrl || undefined })}
+            >
+              <Save className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Fields */}
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="font-display font-bold"
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onUpdate(item.id, { name })}
+            >
+              <Save className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              className="text-sm"
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onUpdate(item.id, { description: desc })}
+            >
+              <Save className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* Price */}
+          {item.price !== undefined && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Precio:</span>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  RD$
+                </span>
+                <Input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
+                  className="w-28 pl-10"
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onUpdate(item.id, { price })}
+              >
+                <Save className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
+          {/* Variants */}
+          {item.variants && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {item.variants.map((v) => (
+                <Badge
+                  key={v.name}
+                  variant="secondary"
+                  className="flex items-center gap-1"
+                >
+                  {v.name}: RD$ {v.price.toLocaleString()}
+                  <button
+                    onClick={() => onRemoveVariant(item.id, v.name)}
+                    className="ml-1 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              <div className="flex items-center gap-1">
+                <Input
+                  placeholder="Variante"
+                  value={variantName}
+                  onChange={(e) => setVariantName(e.target.value)}
+                  className="h-7 w-24 text-xs"
+                />
+                <Input
+                  type="number"
+                  placeholder="Precio"
+                  value={variantPrice || ""}
+                  onChange={(e) => setVariantPrice(parseInt(e.target.value) || 0)}
+                  className="h-7 w-20 text-xs"
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    if (variantName) {
+                      onAddVariant(item.id, { name: variantName, price: variantPrice });
+                      setVariantName("");
+                      setVariantPrice(0);
+                    }
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Delete */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-destructive"
+          onClick={() => onDelete(item.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
