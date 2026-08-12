@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Search, Save, Trash2, Plus, Image, X, FolderPlus, FolderMinus } from "lucide-react";
+import { resizeImageToBase64 } from "@/lib/image";
 
 export function MenuEditorPage() {
   const { items, addItem, updateItem, deleteItem, addVariant, removeVariant } = useMenuManager();
@@ -134,14 +135,46 @@ export function MenuEditorPage() {
                 </div>
               </div>
               <div>
-                <Label>URL de Imagen</Label>
-                <Input
-                  value={newItem.image || ""}
-                  onChange={(e) =>
-                    setNewItem((p) => ({ ...p, image: e.target.value }))
-                  }
-                  placeholder="https://... o /food/photo.jpg"
-                />
+                <Label>Imagen</Label>
+                <div className="flex items-center gap-3">
+                  <div className="relative h-16 w-16 overflow-hidden rounded-xl bg-muted shrink-0">
+                    {newItem.image ? (
+                      <img src={newItem.image} alt="preview" className="h-full w-full object-cover" />
+                    ) : (
+                      <Image className="absolute inset-0 m-auto h-6 w-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const base64 = await resizeImageToBase64(file);
+                          setNewItem((p) => ({ ...p, image: base64 }));
+                        } catch {
+                          alert("Error al procesar la imagen");
+                        }
+                      }}
+                      className="text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <Input
+                        value={newItem.image || ""}
+                        onChange={(e) => setNewItem((p) => ({ ...p, image: e.target.value }))}
+                        placeholder="O pega una URL..."
+                        className="h-8 text-xs"
+                      />
+                      {newItem.image && (
+                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setNewItem((p) => ({ ...p, image: "" }))}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -319,7 +352,7 @@ function EditableItemRow({
   return (
     <div className="flex flex-col gap-3 rounded-2xl border bg-white p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        {/* Image preview & URL */}
+        {/* Image preview & upload */}
         <div className="flex flex-col gap-2">
           <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-muted">
             {item.image ? (
@@ -330,21 +363,39 @@ function EditableItemRow({
               </div>
             )}
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-col gap-1">
             <Input
-              value={imgUrl}
-              onChange={(e) => setImgUrl(e.target.value)}
-              placeholder="URL imagen"
-              className="h-8 w-40 text-xs"
+              type="file"
+              accept="image/*"
+              className="h-8 text-[10px]"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const base64 = await resizeImageToBase64(file);
+                  onUpdate(item.id, { image: base64 });
+                  setImgUrl(base64);
+                } catch {
+                  alert("Error al procesar la imagen");
+                }
+              }}
             />
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => onUpdate(item.id, { image: imgUrl || undefined })}
-            >
-              <Save className="h-3 w-3" />
-            </Button>
+            <div className="flex gap-1">
+              <Input
+                value={imgUrl}
+                onChange={(e) => setImgUrl(e.target.value)}
+                placeholder="URL imagen"
+                className="h-8 w-32 text-xs"
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={() => onUpdate(item.id, { image: imgUrl || undefined })}
+              >
+                <Save className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         </div>
 
