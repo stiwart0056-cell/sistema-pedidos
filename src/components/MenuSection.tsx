@@ -1,9 +1,8 @@
 import { useMenuManager } from "@/hooks/useMenuManager";
-import { type Category } from "@/types";
 import { MenuItemCard } from "./MenuItemCard";
 
 interface MenuSectionProps {
-  category: Category;
+  category: string;
   items: ReturnType<typeof useMenuManager>["items"];
   onAdd: (params: {
     id: string;

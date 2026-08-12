@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   menu: "mr-toasted-menu-v2",
   tables: "mr-toasted-tables",
   restaurant: "mr-toasted-config",
+  categories: "mr-toasted-categories",
 } as const;
 
 export const statusConfig: Record<

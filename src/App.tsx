@@ -8,7 +8,8 @@ import { useCart } from "@/hooks/useCart";
 import { useOrders } from "@/hooks/useOrders";
 import { useMenuManager } from "@/hooks/useMenuManager";
 import { useTables } from "@/hooks/useTables";
-import { categories, type Category, type Order } from "@/types";
+import { useCategories } from "@/hooks/useCategories";
+import type { Order } from "@/types";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DashboardPage } from "@/pages/admin/DashboardPage";
 import { OrdersPage } from "@/pages/admin/OrdersPage";
@@ -22,11 +23,12 @@ function CustomerApp() {
   const orders = useOrders();
   const { items } = useMenuManager();
   const { tables } = useTables();
+  const { categories } = useCategories();
   const [searchParams] = useSearchParams();
   const tableParam = searchParams.get("table");
   const matchedTable = tables.find((t) => t.number === parseInt(tableParam || "", 10));
 
-  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ function CustomerApp() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const id = entry.target.id.replace("cat-", "");
-            setActiveCategory(id as Category);
+            setActiveCategory(id);
           }
         });
       },
@@ -47,9 +49,9 @@ function CustomerApp() {
       if (section) observerRef.current?.observe(section);
     });
     return () => observerRef.current?.disconnect();
-  }, [items]);
+  }, [items, categories]);
 
-  const handleSelectCategory = (category: Category) => {
+  const handleSelectCategory = (category: string) => {
     setActiveCategory(category);
     const el = document.getElementById(`cat-${category}`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });

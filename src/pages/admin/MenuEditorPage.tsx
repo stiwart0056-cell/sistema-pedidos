@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMenuManager } from "@/hooks/useMenuManager";
-import { categories, type MenuItem, type MenuVariant } from "@/types";
+import { useCategories } from "@/hooks/useCategories";
+import type { MenuItem, MenuVariant } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,15 +13,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Save, Trash2, Plus, Image, X } from "lucide-react";
+import { Search, Save, Trash2, Plus, Image, X, FolderPlus, FolderMinus } from "lucide-react";
 
 export function MenuEditorPage() {
   const { items, addItem, updateItem, deleteItem, addVariant, removeVariant } = useMenuManager();
+  const { categories, addCategory, removeCategory } = useCategories();
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [showNewCategory, setShowNewCategory] = useState(false);
 
   const [newItem, setNewItem] = useState<Partial<MenuItem>>({
-    category: categories[0],
+    category: categories[0] || "",
     price: 0,
     description: "",
     name: "",
@@ -40,12 +44,12 @@ export function MenuEditorPage() {
       name: newItem.name,
       description: newItem.description || "",
       price: newItem.price || 0,
-      category: newItem.category || categories[0],
+      category: newItem.category || categories[0] || "General",
       image: newItem.image || undefined,
       variants: newVariants.length > 0 ? newVariants : undefined,
     });
     setNewItem({
-      category: categories[0],
+      category: categories[0] || "",
       price: 0,
       description: "",
       name: "",
@@ -53,6 +57,13 @@ export function MenuEditorPage() {
     });
     setNewVariants([]);
     setIsAddOpen(false);
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) return;
+    addCategory(newCategoryName.trim());
+    setNewCategoryName("");
+    setShowNewCategory(false);
   };
 
   return (
@@ -189,6 +200,59 @@ export function MenuEditorPage() {
         </Dialog>
       </div>
 
+      {/* Category Manager */}
+      <div className="rounded-2xl border bg-white p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-lg font-bold">Categorías</h2>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1 rounded-full"
+            onClick={() => setShowNewCategory(!showNewCategory)}
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            Nueva categoría
+          </Button>
+        </div>
+
+        {showNewCategory && (
+          <div className="flex gap-2 mb-3">
+            <Input
+              placeholder="Nombre de la categoría..."
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+            />
+            <Button size="sm" onClick={handleAddCategory}>
+              Agregar
+            </Button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <Badge
+              key={cat}
+              variant="secondary"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm"
+            >
+              {cat}
+              <button
+                onClick={() => {
+                  if (confirm(`¿Eliminar la categoría "${cat}"? Los productos en esta categoría seguirán existiendo.`)) {
+                    removeCategory(cat);
+                  }
+                }}
+                className="ml-1 text-muted-foreground hover:text-destructive"
+                title="Eliminar categoría"
+              >
+                <FolderMinus className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      </div>
+
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -213,6 +277,7 @@ export function MenuEditorPage() {
                   <EditableItemRow
                     key={item.id}
                     item={item}
+                    categories={categories}
                     onUpdate={updateItem}
                     onDelete={deleteItem}
                     onAddVariant={addVariant}
@@ -230,12 +295,14 @@ export function MenuEditorPage() {
 
 function EditableItemRow({
   item,
+  categories,
   onUpdate,
   onDelete,
   onAddVariant,
   onRemoveVariant,
 }: {
   item: MenuItem;
+  categories: string[];
   onUpdate: (id: string, changes: Partial<MenuItem>) => void;
   onDelete: (id: string) => void;
   onAddVariant: (id: string, v: MenuVariant) => void;
@@ -245,6 +312,7 @@ function EditableItemRow({
   const [price, setPrice] = useState(item.price ?? 0);
   const [name, setName] = useState(item.name);
   const [desc, setDesc] = useState(item.description);
+  const [cat, setCat] = useState(item.category);
   const [variantName, setVariantName] = useState("");
   const [variantPrice, setVariantPrice] = useState(0);
 
@@ -306,6 +374,26 @@ function EditableItemRow({
               size="sm"
               variant="ghost"
               onClick={() => onUpdate(item.id, { description: desc })}
+            >
+              <Save className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* Category */}
+          <div className="flex items-center gap-2">
+            <select
+              className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm"
+              value={cat}
+              onChange={(e) => setCat(e.target.value)}
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onUpdate(item.id, { category: cat })}
             >
               <Save className="h-3 w-3" />
             </Button>

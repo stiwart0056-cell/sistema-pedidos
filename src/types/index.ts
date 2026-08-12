@@ -52,17 +52,3 @@ export interface Table {
   capacity: number;
   status: "free" | "occupied";
 }
-
-export const categories = [
-  "Tempranitos",
-  "Clásicos",
-  "Signature",
-  "Burgers",
-  "El Rinconcito Mexicano",
-  "Jugos",
-  "Batidas",
-  "Refrescos",
-  "Morir Soñando",
-] as const;
-
-export type Category = (typeof categories)[number];

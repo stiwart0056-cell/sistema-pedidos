@@ -1,11 +1,13 @@
-import { categories, type Category } from "@/types";
+import { useCategories } from "@/hooks/useCategories";
 
 interface CategoryNavProps {
-  activeCategory: Category | null;
-  onSelect: (category: Category) => void;
+  activeCategory: string | null;
+  onSelect: (category: string) => void;
 }
 
 export function CategoryNav({ activeCategory, onSelect }: CategoryNavProps) {
+  const { categories } = useCategories();
+
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto max-w-3xl">
