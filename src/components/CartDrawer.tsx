@@ -197,8 +197,11 @@ export function CartDrawer({
           )}
         </button>
       </SheetTrigger>
-      <SheetContent className="flex w-full flex-col gap-0 sm:max-w-md">
-        <SheetHeader className="space-y-2.5 pb-4">
+      
+      {/* SheetContent con altura completa y layout flex */}
+      <SheetContent className="flex w-full flex-col h-full p-0 sm:max-w-md">
+        {/* Header — siempre visible */}
+        <SheetHeader className="space-y-2.5 px-6 py-4 shrink-0 border-b">
           <div className="flex items-center justify-between">
             <SheetTitle className="font-display text-2xl text-primary">
               Tu Pedido
@@ -220,15 +223,17 @@ export function CartDrawer({
         </SheetHeader>
 
         {items.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground px-6">
             <Menu className="h-16 w-16 opacity-20" />
             <p className="text-lg font-medium">Tu carrito está vacío</p>
             <p className="text-sm">Agrega items del menú para comenzar</p>
           </div>
         ) : (
           <>
-            <ScrollArea className="flex-1 -mx-6 px-6">
-              <div className="space-y-4 pb-4">
+            {/* ScrollArea con flex-1 para ocupar todo el espacio disponible */}
+            <ScrollArea className="flex-1 px-6">
+              <div className="space-y-4 py-4">
+                {/* Items */}
                 {items.map((item) => (
                   <div
                     key={item.cartId}
@@ -319,7 +324,7 @@ export function CartDrawer({
                 </div>
 
                 {/* Order Type Selector */}
-                <div className="space-y-3 pt-2">
+                <div className="space-y-3">
                   <Label className="text-sm font-semibold">Tipo de pedido</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
@@ -374,7 +379,7 @@ export function CartDrawer({
                     <Label className="text-sm font-semibold">Datos de entrega</Label>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <User className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Input
                           placeholder="Nombre completo *"
                           value={customerName}
@@ -382,7 +387,7 @@ export function CartDrawer({
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Input
                           placeholder="Teléfono *"
                           value={customerPhone}
@@ -391,7 +396,7 @@ export function CartDrawer({
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                           <Input
                             placeholder="Dirección completa *"
                             value={customerAddress}
@@ -456,6 +461,7 @@ export function CartDrawer({
                   </div>
                 )}
 
+                {/* Notes */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Nota especial</Label>
                   <Input
@@ -464,11 +470,14 @@ export function CartDrawer({
                     onChange={(e) => setCustomerNotes(e.target.value)}
                   />
                 </div>
+
+                {/* Spacer para que el footer no tape contenido */}
+                <div className="h-2" />
               </div>
             </ScrollArea>
 
-            {/* Sticky Footer — siempre visible */}
-            <div className="sticky bottom-0 -mx-6 mt-auto bg-background/95 backdrop-blur px-6 pt-3 pb-6 border-t">
+            {/* Footer — siempre visible al fondo, fuera del scroll */}
+            <div className="shrink-0 bg-background/95 backdrop-blur px-6 pt-3 pb-6 border-t">
               <Separator className="mb-3" />
 
               <div className="space-y-1 mb-3">
