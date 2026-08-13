@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Order, OrderStatus } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { playBeep } from "@/utils/audio";
 
 const STORAGE_KEY = "mr-toasted-orders";
 
@@ -34,6 +35,11 @@ function mapOrder(row: any, items: any[]): Order {
     id: row.id,
     items,
     total: row.total,
+    discount: row.discount ?? undefined,
+    couponCode: row.coupon_code ?? undefined,
+    deliveryFee: row.delivery_fee ?? undefined,
+    deliveryZoneId: row.delivery_zone_id ?? undefined,
+    finalTotal: row.final_total ?? row.total,
     createdAt: row.created_at,
     status: row.status,
     type: row.type,
@@ -54,6 +60,7 @@ function mapOrder(row: any, items: any[]): Order {
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>(loadLocal);
   const [online, setOnline] = useState(false);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const refreshOrders = useCallback(async () => {
     try {
@@ -97,9 +104,38 @@ export function useOrders() {
   }, []);
 
   useEffect(() => {
+    // Initial load
     refreshOrders();
-    const timer = setInterval(refreshOrders, 5000); // polling cada 5s
-    return () => clearInterval(timer);
+
+    // Setup Supabase Realtime
+    const channel = supabase
+      .channel("orders-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload) => {
+          console.log("[Realtime] orders change:", payload.eventType, payload);
+          refreshOrders();
+          // Play beep on new order
+          if (payload.eventType === "INSERT") {
+            playBeep();
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "order_items" },
+        () => {
+          refreshOrders();
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+    };
   }, [refreshOrders]);
 
   const addOrder = useCallback(
@@ -123,6 +159,11 @@ export function useOrders() {
             customer_address: order.customer?.address ?? null,
             customer_notes: order.customer?.notes ?? null,
             total: order.total,
+            discount: order.discount ?? null,
+            coupon_code: order.couponCode ?? null,
+            delivery_fee: order.deliveryFee ?? null,
+            delivery_zone_id: order.deliveryZoneId ?? null,
+            final_total: order.finalTotal ?? order.total,
             tax: 0,
             payment_method: "cash",
           })
@@ -186,5 +227,26 @@ export function useOrders() {
     [orders, online]
   );
 
-  return { orders, refresh: refreshOrders, addOrder, updateStatus, deleteOrder };
+  const cancelOrder = useCallback(
+    async (orderId: string) => {
+      const updated = orders.map((o) =>
+        o.id === orderId ? { ...o, status: "cancelled" as OrderStatus } : o
+      );
+      setOrders(updated);
+      saveLocal(updated);
+
+      if (!online) return;
+      try {
+        await supabase
+          .from("orders")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+      } catch (e) {
+        console.error("[useOrders] cancelOrder failed:", e);
+      }
+    },
+    [orders, online]
+  );
+
+  return { orders, refresh: refreshOrders, addOrder, updateStatus, deleteOrder, cancelOrder };
 }

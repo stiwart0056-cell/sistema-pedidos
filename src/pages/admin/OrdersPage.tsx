@@ -106,7 +106,7 @@ export function OrdersPage() {
                   )}
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    {order.status !== "delivered" && (
+                    {order.status !== "delivered" && order.status !== "cancelled" && (
                       <Button
                         size="sm"
                         className="rounded-full"
@@ -116,6 +116,7 @@ export function OrdersPage() {
                             preparing: "ready",
                             ready: "delivered",
                             delivered: "delivered",
+                            cancelled: "cancelled",
                           };
                           updateStatus(order.id, next[order.status]);
                         }}

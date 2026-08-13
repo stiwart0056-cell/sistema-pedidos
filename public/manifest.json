@@ -1,0 +1,25 @@
+{
+  "name": "Mr. Toasted — Pedidos",
+  "short_name": "Mr. Toasted",
+  "description": "Ordena los mejores sandwiches y toasts de Mr. Toasted",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1aff",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

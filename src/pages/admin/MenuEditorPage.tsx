@@ -30,6 +30,8 @@ export function MenuEditorPage() {
     description: "",
     name: "",
     image: "",
+    stock: undefined,
+    isAvailable: true,
   });
   const [newVariants, setNewVariants] = useState<MenuVariant[]>([]);
 
@@ -48,6 +50,8 @@ export function MenuEditorPage() {
       category: newItem.category || categories[0] || "General",
       image: newItem.image || undefined,
       variants: newVariants.length > 0 ? newVariants : undefined,
+      stock: newItem.stock !== undefined ? Number(newItem.stock) : undefined,
+      isAvailable: newItem.isAvailable ?? true,
     });
     setNewItem({
       category: categories[0] || "",
@@ -55,6 +59,8 @@ export function MenuEditorPage() {
       description: "",
       name: "",
       image: "",
+      stock: undefined,
+      isAvailable: true,
     });
     setNewVariants([]);
     setIsAddOpen(false);
@@ -225,6 +231,38 @@ export function MenuEditorPage() {
                 </div>
               </div>
 
+              {/* Stock & Availability */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Stock (dejar vacío = ilimitado)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={newItem.stock ?? ""}
+                    onChange={(e) =>
+                      setNewItem((p) => ({
+                        ...p,
+                        stock: e.target.value === "" ? undefined : parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    placeholder="Ilimitado"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newItem.isAvailable ?? true}
+                      onChange={(e) =>
+                        setNewItem((p) => ({ ...p, isAvailable: e.target.checked }))
+                      }
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <span className="text-sm font-medium">Disponible</span>
+                  </label>
+                </div>
+              </div>
+
               <Button className="w-full rounded-full" onClick={handleAddProduct}>
                 Guardar Producto
               </Button>
@@ -346,6 +384,8 @@ function EditableItemRow({
   const [name, setName] = useState(item.name);
   const [desc, setDesc] = useState(item.description);
   const [cat, setCat] = useState(item.category);
+  const [stock, setStock] = useState(item.stock ?? "");
+  const [isAvailable, setIsAvailable] = useState(item.isAvailable ?? true);
   const [variantName, setVariantName] = useState("");
   const [variantPrice, setVariantPrice] = useState(0);
 
@@ -474,6 +514,40 @@ function EditableItemRow({
               </Button>
             </div>
           )}
+
+          {/* Stock & Availability */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Stock:</span>
+              <Input
+                type="number"
+                min={0}
+                value={stock}
+                onChange={(e) => setStock(e.target.value === "" ? "" : parseInt(e.target.value) || 0)}
+                placeholder="∞"
+                className="w-20 h-8 text-xs"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onUpdate(item.id, { stock: stock === "" ? undefined : Number(stock) })}
+              >
+                <Save className="h-3 w-3" />
+              </Button>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAvailable}
+                onChange={(e) => {
+                  setIsAvailable(e.target.checked);
+                  onUpdate(item.id, { isAvailable: e.target.checked });
+                }}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <span className="text-sm font-medium">Disponible</span>
+            </label>
+          </div>
 
           {/* Variants */}
           {item.variants && (

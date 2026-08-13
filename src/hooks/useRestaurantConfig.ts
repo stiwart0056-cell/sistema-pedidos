@@ -67,7 +67,7 @@ export function useRestaurantConfig() {
     try {
       await supabase
         .from("restaurant_config")
-        .upsert({ id: CONFIG_ID, ...changes, updated_at: new Date().toISOString() });
+        .upsert({ id: CONFIG_ID, ...updated, updated_at: new Date().toISOString() });
     } catch (e) {
       console.error("[useRestaurantConfig] save failed:", e);
     }

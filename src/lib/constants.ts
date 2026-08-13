@@ -1,4 +1,4 @@
-import { Clock, ChefHat, CheckCircle, Package, Home, MapPin, User } from "lucide-react";
+import { Clock, ChefHat, CheckCircle, Package, Home, MapPin, User, XCircle, AlertTriangle } from "lucide-react";
 import type { OrderStatus } from "@/types";
 
 export const RESTAURANT = {
@@ -29,6 +29,7 @@ export const statusConfig: Record<
   preparing: { label: "Preparando", color: "bg-blue-100 text-blue-700", next: "ready", icon: ChefHat },
   ready: { label: "Listo", color: "bg-green-100 text-green-700", next: "delivered", icon: CheckCircle },
   delivered: { label: "Entregado", color: "bg-gray-100 text-gray-700", next: null, icon: Package },
+  cancelled: { label: "Cancelado", color: "bg-red-100 text-red-700", next: null, icon: XCircle },
 };
 
 export function getOrderTypeIcon(type: string) {

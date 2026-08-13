@@ -7,13 +7,20 @@ import {
   QrCode,
   ChefHat,
   Settings,
+  LogOut,
+  Tag,
+  Truck,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const nav = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/admin/orders", icon: ClipboardList, label: "Pedidos" },
   { to: "/admin/menu", icon: UtensilsCrossed, label: "Menú" },
   { to: "/admin/tables", icon: QrCode, label: "Mesas & QR" },
+  { to: "/admin/coupons", icon: Tag, label: "Cupones" },
+  { to: "/admin/zones", icon: Truck, label: "Zonas Delivery" },
   { to: "/admin/settings", icon: Settings, label: "Configuración" },
 ];
 
@@ -22,6 +29,8 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
+  const { signOut, user } = useAuth();
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 px-6 py-5">
@@ -69,7 +78,20 @@ export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
         </NavLink>
       </nav>
 
-      <div className="border-t p-3">
+      <div className="border-t p-3 space-y-1">
+        {user && (
+          <div className="px-3 py-2">
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={() => signOut()}
+        >
+          <LogOut className="h-4 w-4" />
+          Cerrar sesión
+        </Button>
         <NavLink
           to="/"
           onClick={onNavigate}

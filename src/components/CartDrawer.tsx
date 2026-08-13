@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Menu, ShoppingCart, X, MapPin, Phone, User, Home, MessageSquare } from "lucide-react";
+import { Menu, ShoppingCart, X, MapPin, Phone, User, Home, MessageSquare, Tag, Check, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import type { CartItem, OrderType } from "@/types";
 import { useTables } from "@/hooks/useTables";
 import { useRestaurantConfig } from "@/hooks/useRestaurantConfig";
+import { useCoupons } from "@/hooks/useCoupons";
+import { useDeliveryZones } from "@/hooks/useDeliveryZones";
 
 interface CartDrawerProps {
   items: CartItem[];
@@ -30,6 +32,10 @@ interface CartDrawerProps {
     tableId?: string;
     tableNumber?: number;
     customer?: { name: string; phone: string; address?: string; notes?: string };
+    discount?: number;
+    couponCode?: string;
+    deliveryFee?: number;
+    deliveryZoneId?: string;
   }) => void;
   defaultTableId?: string;
   defaultTableNumber?: number;
@@ -48,14 +54,24 @@ export function CartDrawer({
 }: CartDrawerProps) {
   const { tables } = useTables();
   const { config } = useRestaurantConfig();
+  const { validateCoupon, incrementUses } = useCoupons();
+  const { getActiveZones } = useDeliveryZones();
   const [open, setOpen] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>(defaultTableId ? "dine-in" : "pickup");
   const [selectedTable, setSelectedTable] = useState(defaultTableId || "");
+  const [selectedZone, setSelectedZone] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [showMap, setShowMap] = useState(false);
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+
+  const activeZones = getActiveZones();
+  const deliveryFee = selectedZone ? activeZones.find((z) => z.id === selectedZone)?.fee || 0 : 0;
 
   useEffect(() => {
     if (defaultTableId) {
@@ -64,7 +80,32 @@ export function CartDrawer({
     }
   }, [defaultTableId]);
 
+  // Reset coupon when cart changes
+  useEffect(() => {
+    if (items.length === 0) {
+      setAppliedCoupon(null);
+      setCouponCode("");
+      setSelectedZone("");
+    }
+  }, [items.length]);
+
   const freeTables = tables.filter((t) => t.status === "free");
+
+  const subtotal = totalPrice;
+  const discount = appliedCoupon?.discount || 0;
+  const finalPrice = Math.max(0, subtotal - discount + deliveryFee);
+
+  const handleApplyCoupon = () => {
+    if (!couponCode.trim()) return;
+    const result = validateCoupon(couponCode.trim(), subtotal);
+    if (result.valid) {
+      setAppliedCoupon({ code: couponCode.trim(), discount: result.discount });
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+      setAppliedCoupon(null);
+    }
+  };
 
   const buildWhatsAppUrl = () => {
     const lines = items.map(
@@ -74,6 +115,7 @@ export function CartDrawer({
         ).toLocaleString()}`
     );
     const table = tables.find((t) => t.id === selectedTable);
+    const zone = activeZones.find((z) => z.id === selectedZone);
     const typeLabel =
       orderType === "delivery"
         ? "🛵 *Delivery*"
@@ -84,11 +126,15 @@ export function CartDrawer({
       orderType === "delivery"
         ? `\n👤 *Cliente:* ${customerName}\n📞 *Tel:* ${customerPhone}\n📍 *Dirección:* ${customerAddress}`
         : "";
+    const zoneText = zone ? `\n📍 *Zona:* ${zone.name} (+RD$ ${zone.fee.toLocaleString()})` : "";
     const notes = customerNotes ? `\n📝 *Nota:* ${customerNotes}` : "";
+    const discountText = appliedCoupon
+      ? `\n🎟️ *Descuento (${appliedCoupon.code}):* -RD$ ${appliedCoupon.discount.toLocaleString()}`
+      : "";
     const text = encodeURIComponent(
-      `🍞 *Pedido ${config.name}*\n${typeLabel}${customerInfo}${notes}\n\n${lines.join(
+      `🍞 *Pedido ${config.name}*\n${typeLabel}${customerInfo}${zoneText}${notes}\n\n${lines.join(
         "\n"
-      )}\n\n💰 *Total: RD$ ${totalPrice.toLocaleString()}*`
+      )}${discountText}\n\n💰 *Total: RD$ ${finalPrice.toLocaleString()}*`
     );
     return `https://wa.me/${config.phone}?text=${text}`;
   };
@@ -108,15 +154,33 @@ export function CartDrawer({
               notes: customerNotes,
             }
           : undefined,
+      discount: appliedCoupon?.discount,
+      couponCode: appliedCoupon?.code,
+      deliveryFee: orderType === "delivery" ? deliveryFee : undefined,
+      deliveryZoneId: orderType === "delivery" ? selectedZone : undefined,
     });
+    if (appliedCoupon) {
+      incrementUses(appliedCoupon.code);
+    }
     setOpen(false);
-    toast.success("¡Pedido confirmado!");
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setSelectedZone("");
+
+    // Toast contextual según tipo de pedido
+    if (orderType === "delivery") {
+      toast.success("¡Pedido confirmado! Tu delivery está en camino.");
+    } else if (orderType === "dine-in") {
+      toast.success("¡Pedido confirmado! Pronto te lo llevamos a la mesa.");
+    } else {
+      toast.success("¡Pedido confirmado! Pasa a retirarlo cuando esté listo.");
+    }
   };
 
   const canConfirm =
     items.length > 0 &&
     (orderType !== "dine-in" || selectedTable !== "") &&
-    (orderType !== "delivery" || (customerName && customerPhone && customerAddress));
+    (orderType !== "delivery" || (customerName && customerPhone && customerAddress && selectedZone));
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -124,7 +188,7 @@ export function CartDrawer({
         <button className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-full bg-primary px-5 py-3 text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-95">
           <ShoppingCart className="h-5 w-5" />
           <span className="font-display text-lg font-bold">
-            RD$ {totalPrice.toLocaleString()}
+            RD$ {finalPrice.toLocaleString()}
           </span>
           {totalItems > 0 && (
             <Badge className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-white p-0 text-xs font-bold text-primary">
@@ -215,6 +279,45 @@ export function CartDrawer({
                   </div>
                 ))}
 
+                {/* Coupon Section */}
+                <div className="space-y-2 rounded-xl border bg-white p-4">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Tag className="h-4 w-4" /> Cupón de descuento
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ej: TOASTED20"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                      disabled={!!appliedCoupon}
+                      className="uppercase"
+                    />
+                    {appliedCoupon ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAppliedCoupon(null);
+                          setCouponCode("");
+                        }}
+                      >
+                        Quitar
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={handleApplyCoupon}>
+                        Aplicar
+                      </Button>
+                    )}
+                  </div>
+                  {appliedCoupon && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <Check className="h-4 w-4" />
+                      Cupón "{appliedCoupon.code}" aplicado: -RD$ {appliedCoupon.discount.toLocaleString()}
+                    </div>
+                  )}
+                </div>
+
                 {/* Order Type Selector */}
                 <div className="space-y-3 pt-2">
                   <Label className="text-sm font-semibold">Tipo de pedido</Label>
@@ -239,6 +342,31 @@ export function CartDrawer({
                     ))}
                   </div>
                 </div>
+
+                {/* Delivery Zone Selector */}
+                {orderType === "delivery" && activeZones.length > 0 && (
+                  <div className="space-y-3 rounded-xl border bg-white p-4">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <Truck className="h-4 w-4" /> Zona de delivery *
+                    </Label>
+                    <div className="space-y-2">
+                      {activeZones.map((zone) => (
+                        <button
+                          key={zone.id}
+                          onClick={() => setSelectedZone(zone.id)}
+                          className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                            selectedZone === zone.id
+                              ? "border-primary bg-primary/5 text-primary font-semibold"
+                              : "border-border bg-white text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <span>{zone.name}</span>
+                          <span>+RD$ {zone.fee.toLocaleString()}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Delivery Form */}
                 {orderType === "delivery" && (
@@ -343,11 +471,25 @@ export function CartDrawer({
             <div className="sticky bottom-0 -mx-6 mt-auto bg-background/95 backdrop-blur px-6 pt-3 pb-6 border-t">
               <Separator className="mb-3" />
 
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-display text-lg font-semibold">Total</span>
-                <span className="font-display text-2xl font-bold text-primary">
-                  RD$ {totalPrice.toLocaleString()}
-                </span>
+              <div className="space-y-1 mb-3">
+                {deliveryFee > 0 && (
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Delivery</span>
+                    <span>+RD$ {deliveryFee.toLocaleString()}</span>
+                  </div>
+                )}
+                {appliedCoupon && (
+                  <div className="flex items-center justify-between text-sm text-green-600">
+                    <span>Descuento ({appliedCoupon.code})</span>
+                    <span>-RD$ {appliedCoupon.discount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-lg font-semibold">Total</span>
+                  <span className="font-display text-2xl font-bold text-primary">
+                    RD$ {finalPrice.toLocaleString()}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-2">

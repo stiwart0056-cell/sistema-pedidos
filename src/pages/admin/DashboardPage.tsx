@@ -7,6 +7,7 @@ import {
   TrendingUp,
   Clock,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BarChart,
@@ -69,6 +70,16 @@ export function DashboardPage() {
 
   const recentOrders = orders.slice(0, 5);
 
+  // Stock alerts
+  const outOfStock = menuItems.filter((i) => i.isAvailable === false || (i.stock !== undefined && i.stock !== null && i.stock <= 0));
+  const lowStock = menuItems.filter((i) => 
+    i.isAvailable !== false && 
+    i.stock !== undefined && 
+    i.stock !== null && 
+    i.stock > 0 && 
+    i.stock <= 5
+  );
+
   return (
     <div className="space-y-8">
       <h1 className="font-display text-3xl font-bold text-foreground">
@@ -91,6 +102,42 @@ export function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Stock Alerts */}
+      {(outOfStock.length > 0 || lowStock.length > 0) && (
+        <div className="space-y-3">
+          {outOfStock.length > 0 && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+              <div className="mb-2 flex items-center gap-2 text-red-700">
+                <AlertTriangle className="h-5 w-5" />
+                <h2 className="font-display font-bold">Productos Agotados ({outOfStock.length})</h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {outOfStock.map((i) => (
+                  <span key={i.id} className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                    {i.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {lowStock.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="mb-2 flex items-center gap-2 text-amber-700">
+                <AlertTriangle className="h-5 w-5" />
+                <h2 className="font-display font-bold">Stock Bajo ({lowStock.length})</h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {lowStock.map((i) => (
+                  <span key={i.id} className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                    {i.name} ({i.stock} restantes)
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -198,6 +245,8 @@ export function DashboardPage() {
                         ? "bg-blue-100 text-blue-700"
                         : o.status === "ready"
                         ? "bg-green-100 text-green-700"
+                        : o.status === "cancelled"
+                        ? "bg-red-100 text-red-700"
                         : "bg-gray-100 text-gray-700"
                     }`}
                   >

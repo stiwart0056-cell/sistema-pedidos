@@ -11,6 +11,8 @@ export interface MenuItem {
   variants?: MenuVariant[];
   category: string;
   image?: string;
+  stock?: number;
+  isAvailable?: boolean;
 }
 
 export interface CartItem {
@@ -32,12 +34,17 @@ export interface CustomerInfo {
   notes?: string;
 }
 
-export type OrderStatus = "pending" | "preparing" | "ready" | "delivered";
+export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
 
 export interface Order {
   id: string;
   items: CartItem[];
   total: number;
+  discount?: number;
+  couponCode?: string;
+  deliveryFee?: number;
+  deliveryZoneId?: string;
+  finalTotal: number;
   createdAt: string;
   status: OrderStatus;
   type: OrderType;
@@ -51,4 +58,24 @@ export interface Table {
   number: number;
   capacity: number;
   status: "free" | "occupied";
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: "percentage" | "fixed";
+  discountValue: number;
+  minOrderAmount?: number;
+  maxUses?: number;
+  usesCount: number;
+  expiresAt?: string;
+  isActive: boolean;
+}
+
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  fee: number;
+  minOrderAmount?: number;
+  isActive: boolean;
 }

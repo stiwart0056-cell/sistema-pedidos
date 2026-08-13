@@ -27,6 +27,8 @@ function mapRow(row: any): MenuItem {
     variants: Array.isArray(row.variants) ? row.variants : undefined,
     category: row.category,
     image: row.image ?? undefined,
+    stock: row.stock ?? undefined,
+    isAvailable: row.is_available ?? true,
   };
 }
 
@@ -65,6 +67,7 @@ export function useMenuManager() {
                 variants: item.variants ?? [],
                 is_available: true,
                 is_featured: false,
+                stock: null,
               })
               .select()
               .single();
@@ -83,6 +86,7 @@ export function useMenuManager() {
           const seeded = defaultMenuItems.map((it, idx) => ({
             ...it,
             id: `seed-${idx}`,
+            isAvailable: true,
           }));
           setItems(seeded);
           saveLocal(seeded);
@@ -107,8 +111,9 @@ export function useMenuManager() {
           category: item.category,
           image: item.image ?? null,
           variants: item.variants ?? [],
-          is_available: true,
+          is_available: item.isAvailable ?? true,
           is_featured: false,
+          stock: item.stock ?? null,
         })
         .select()
         .single();
@@ -136,6 +141,8 @@ export function useMenuManager() {
       if (changes.category !== undefined) payload.category = changes.category;
       if (changes.image !== undefined) payload.image = changes.image ?? null;
       if (changes.variants !== undefined) payload.variants = changes.variants ?? [];
+      if (changes.stock !== undefined) payload.stock = changes.stock ?? null;
+      if (changes.isAvailable !== undefined) payload.is_available = changes.isAvailable;
       await supabase.from("menu_items").update(payload).eq("id", id);
     } catch (e) {
       console.error("[useMenuManager] update failed:", e);
@@ -188,6 +195,37 @@ export function useMenuManager() {
     }
   }, [items]);
 
+  // Decrement stock when an order is placed
+  const decrementStock = useCallback(async (itemId: string, quantity: number = 1) => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item || item.stock === undefined || item.stock === null) return;
+    
+    const newStock = Math.max(0, item.stock - quantity);
+    const updated = items.map((i) =>
+      i.id === itemId ? { ...i, stock: newStock, isAvailable: newStock > 0 } : i
+    );
+    setItems(updated);
+    saveLocal(updated);
+
+    try {
+      await supabase
+        .from("menu_items")
+        .update({ stock: newStock, is_available: newStock > 0 })
+        .eq("id", itemId);
+    } catch (e) {
+      console.error("[useMenuManager] decrementStock failed:", e);
+    }
+  }, [items]);
+
+  // Check if item has stock available
+  const hasStock = useCallback((itemId: string, quantity: number = 1): boolean => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return false;
+    if (item.isAvailable === false) return false;
+    if (item.stock === undefined || item.stock === null) return true; // unlimited
+    return item.stock >= quantity;
+  }, [items]);
+
   return {
     items,
     addItem,
@@ -195,5 +233,7 @@ export function useMenuManager() {
     deleteItem,
     addVariant,
     removeVariant,
+    decrementStock,
+    hasStock,
   };
 }

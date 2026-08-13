@@ -99,6 +99,9 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
               background: #f9f9f9;
               border-radius: 4px;
             }
+            .receipt-discount {
+              color: #16a34a;
+            }
             @media print {
               body { padding: 0; }
             }
@@ -122,8 +125,8 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
 
   const subtotal = order.total;
   const taxRate = 0.18;
-  const tax = Math.round(subtotal * taxRate);
-  const totalWithTax = subtotal + tax;
+  const tax = Math.round((subtotal - (order.discount || 0)) * taxRate);
+  const totalWithTax = subtotal + tax - (order.discount || 0);
 
   const typeLabel =
     order.type === "delivery"
@@ -214,6 +217,12 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
                 <span>Subtotal:</span>
                 <span>RD$ {subtotal.toLocaleString()}</span>
               </div>
+              {order.discount !== undefined && order.discount > 0 && (
+                <div className="flex justify-between receipt-discount">
+                  <span>Descuento ({order.couponCode}):</span>
+                  <span>-RD$ {order.discount.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>ITBIS (18%):</span>
                 <span>RD$ {tax.toLocaleString()}</span>

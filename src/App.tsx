@@ -16,12 +16,16 @@ import { OrdersPage } from "@/pages/admin/OrdersPage";
 import { MenuEditorPage } from "@/pages/admin/MenuEditorPage";
 import { TablesPage } from "@/pages/admin/TablesPage";
 import { SettingsPage } from "@/pages/admin/SettingsPage";
+import { CouponsPage } from "@/pages/admin/CouponsPage";
+import { DeliveryZonesPage } from "@/pages/admin/DeliveryZonesPage";
 import { KitchenPage } from "@/pages/KitchenPage";
+import { LoginPage } from "@/pages/LoginPage";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function CustomerApp() {
   const cart = useCart();
   const orders = useOrders();
-  const { items } = useMenuManager();
+  const { items, decrementStock } = useMenuManager();
   const { tables } = useTables();
   const { categories } = useCategories();
   const [searchParams] = useSearchParams();
@@ -63,13 +67,25 @@ function CustomerApp() {
       tableId?: string;
       tableNumber?: number;
       customer?: Order["customer"];
+      discount?: number;
+      couponCode?: string;
+      deliveryFee?: number;
+      deliveryZoneId?: string;
     }) => {
       if (cart.items.length === 0) return;
       const total = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      const discount = options.discount || 0;
+      const deliveryFee = options.deliveryFee || 0;
+      const finalTotal = Math.max(0, total - discount + deliveryFee);
       const order: Order = {
         id: `ORD-${Date.now()}`,
         items: [...cart.items],
         total,
+        discount,
+        couponCode: options.couponCode,
+        deliveryFee,
+        deliveryZoneId: options.deliveryZoneId,
+        finalTotal,
         createdAt: new Date().toISOString(),
         status: "pending",
         type: options.type,
@@ -78,9 +94,13 @@ function CustomerApp() {
         customer: options.customer,
       };
       orders.addOrder(order);
+      // Decrement stock for each item
+      cart.items.forEach((item) => {
+        decrementStock(item.id, item.quantity);
+      });
       cart.clearCart();
     },
-    [cart, orders]
+    [cart, orders, decrementStock]
   );
 
   return (
@@ -118,13 +138,30 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<CustomerApp />} />
-      <Route path="/kitchen" element={<KitchenPage />} />
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/kitchen"
+        element={
+          <ProtectedRoute>
+            <KitchenPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<DashboardPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="menu" element={<MenuEditorPage />} />
         <Route path="tables" element={<TablesPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="coupons" element={<CouponsPage />} />
+        <Route path="zones" element={<DeliveryZonesPage />} />
       </Route>
     </Routes>
   );
