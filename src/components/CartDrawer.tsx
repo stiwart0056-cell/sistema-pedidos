@@ -12,7 +12,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { CartItem, OrderType } from "@/types";
 import { useTables } from "@/hooks/useTables";
@@ -230,8 +229,8 @@ export function CartDrawer({
           </div>
         ) : (
           <>
-            {/* ScrollArea con flex-1 para ocupar todo el espacio disponible */}
-            <ScrollArea className="flex-1 px-6">
+            {/* Contenido scrolleable — overflow-y-auto nativo funciona mejor en móviles */}
+            <div className="flex-1 overflow-y-auto px-6 min-h-0">
               <div className="space-y-4 py-4">
                 {/* Items */}
                 {items.map((item) => (
@@ -474,7 +473,7 @@ export function CartDrawer({
                 {/* Spacer para que el footer no tape contenido */}
                 <div className="h-2" />
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Footer — siempre visible al fondo, fuera del scroll */}
             <div className="shrink-0 bg-background/95 backdrop-blur px-6 pt-3 pb-6 border-t">
