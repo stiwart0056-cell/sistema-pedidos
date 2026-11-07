@@ -20,14 +20,14 @@ import { playBeep } from "@/utils/audio";
 import { statusConfig, getOrderTypeLabel } from "@/lib/constants";
 import { OrderReceipt } from "@/components/OrderReceipt";
 
-/* ── Timer en vivo ── */
-function useElapsed(createdAt: string) {
-  const [elapsed, setElapsed] = useState(() => Date.now() - new Date(createdAt).getTime());
+/* ── Timer global: 1 solo setInterval para toda la página ── */
+function useNow() {
+  const [now, setNow] = useState(Date.now);
   useEffect(() => {
-    const id = setInterval(() => setElapsed(Date.now() - new Date(createdAt).getTime()), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [createdAt]);
-  return elapsed;
+  }, []);
+  return now;
 }
 
 function formatElapsed(ms: number) {
@@ -41,14 +41,16 @@ function OrderCard({
   order,
   onUpdate,
   onCancel,
+  now,
 }: {
   order: Order;
   onUpdate: (id: string, s: Order["status"]) => void;
   onCancel: (id: string) => void;
+  now: number;
 }) {
   const config = statusConfig[order.status];
   const StatusIcon = config.icon;
-  const elapsed = useElapsed(order.createdAt);
+  const elapsed = now - new Date(order.createdAt).getTime();
   const isUrgent =
     (order.status === "pending" && elapsed > 10 * 60 * 1000) ||
     (order.status === "preparing" && elapsed > 20 * 60 * 1000);
@@ -119,7 +121,7 @@ function OrderCard({
             RD$ {order.finalTotal.toLocaleString()}
           </p>
           {order.discount && order.discount > 0 && (
-            <p className="text-xs text-green-600 font-medium">-{order.discount}% cupón</p>
+            <p className="text-xs text-green-600 font-medium">-RD$ {order.discount.toLocaleString()} cupón</p>
           )}
         </div>
       </div>
@@ -231,6 +233,7 @@ export function KitchenPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [filterType, setFilterType] = useState<OrderType | "all">("all");
   const prevPendingRef = useRef(0);
+  const now = useNow();
 
   /* Sonido al llegar nuevo pedido */
   useEffect(() => {
@@ -353,7 +356,7 @@ export function KitchenPage() {
               <div className="text-center py-8 text-muted-foreground text-sm">Sin pedidos pendientes</div>
             )}
             {pending.map((o) => (
-              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} />
+              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} now={now} />
             ))}
           </Column>
 
@@ -362,7 +365,7 @@ export function KitchenPage() {
               <div className="text-center py-8 text-muted-foreground text-sm">Sin pedidos en preparación</div>
             )}
             {preparing.map((o) => (
-              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} />
+              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} now={now} />
             ))}
           </Column>
 
@@ -371,7 +374,7 @@ export function KitchenPage() {
               <div className="text-center py-8 text-muted-foreground text-sm">Sin pedidos listos</div>
             )}
             {ready.map((o) => (
-              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} />
+              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} now={now} />
             ))}
           </Column>
 
@@ -380,7 +383,7 @@ export function KitchenPage() {
               <div className="text-center py-8 text-muted-foreground text-sm">Sin pedidos entregados</div>
             )}
             {delivered.map((o) => (
-              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} />
+              <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} now={now} />
             ))}
           </Column>
 
@@ -391,7 +394,7 @@ export function KitchenPage() {
                 <div className="text-center py-8 text-muted-foreground text-sm">Sin pedidos cancelados</div>
               )}
               {cancelled.map((o) => (
-                <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} />
+                <OrderCard key={o.id} order={o} onUpdate={updateStatus} onCancel={cancelOrder} now={now} />
               ))}
             </Column>
           </div>

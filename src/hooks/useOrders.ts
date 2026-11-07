@@ -192,20 +192,36 @@ export function useOrders() {
 
   const updateStatus = useCallback(
     async (orderId: string, status: OrderStatus) => {
-      const updated = orders.map((o) =>
-        o.id === orderId ? { ...o, status } : o
-      );
-      setOrders(updated);
-      saveLocal(updated);
+      if (!online) {
+        // Offline: solo actualizar local
+        const updated = orders.map((o) =>
+          o.id === orderId ? { ...o, status } : o
+        );
+        setOrders(updated);
+        saveLocal(updated);
+        return;
+      }
 
-      if (!online) return;
       try {
-        await supabase
+        // 1. Primero actualizar en Supabase
+        const { error } = await supabase
           .from("orders")
           .update({ status, updated_at: new Date().toISOString() })
           .eq("id", orderId);
+
+        if (error) throw error;
+
+        // 2. Luego actualizar estado local (después de confirmar Supabase)
+        const updated = orders.map((o) =>
+          o.id === orderId ? { ...o, status } : o
+        );
+        setOrders(updated);
+        saveLocal(updated);
       } catch (e) {
         console.error("[useOrders] updateStatus failed:", e);
+        // Revertir el cambio local si falló
+        setOrders(orders);
+        saveLocal(orders);
       }
     },
     [orders, online]
@@ -229,20 +245,32 @@ export function useOrders() {
 
   const cancelOrder = useCallback(
     async (orderId: string) => {
-      const updated = orders.map((o) =>
-        o.id === orderId ? { ...o, status: "cancelled" as OrderStatus } : o
-      );
-      setOrders(updated);
-      saveLocal(updated);
+      if (!online) {
+        const updated = orders.map((o) =>
+          o.id === orderId ? { ...o, status: "cancelled" as OrderStatus } : o
+        );
+        setOrders(updated);
+        saveLocal(updated);
+        return;
+      }
 
-      if (!online) return;
       try {
-        await supabase
+        const { error } = await supabase
           .from("orders")
           .update({ status: "cancelled", updated_at: new Date().toISOString() })
           .eq("id", orderId);
+
+        if (error) throw error;
+
+        const updated = orders.map((o) =>
+          o.id === orderId ? { ...o, status: "cancelled" as OrderStatus } : o
+        );
+        setOrders(updated);
+        saveLocal(updated);
       } catch (e) {
         console.error("[useOrders] cancelOrder failed:", e);
+        setOrders(orders);
+        saveLocal(orders);
       }
     },
     [orders, online]

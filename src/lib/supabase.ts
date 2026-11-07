@@ -1,6 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://xkohsrjgvfkkuuwelnll.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_Y-k4Hk5KB29m1BSCNw-owQ_eOyHycL4";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error(
+    "[Supabase] Faltan variables de entorno. " +
+    "Crea un archivo .env.local con VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY"
+  );
+}
+
+export const supabase = createClient(
+  SUPABASE_URL || "",
+  SUPABASE_ANON_KEY || ""
+);

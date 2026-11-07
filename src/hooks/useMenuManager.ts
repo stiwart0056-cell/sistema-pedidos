@@ -47,36 +47,35 @@ export function useMenuManager() {
           setItems(mapped);
           saveLocal(mapped);
         } else if (!localStorage.getItem(SEED_KEY)) {
-          // Force re-seed: clear old items and insert correct menu from PDF
+          // Safe seed: only insert if table is empty, NEVER delete existing data
           localStorage.setItem(SEED_KEY, "true");
-          localStorage.removeItem(STORAGE_KEY);
           
-          // Clear existing items from Supabase
-          await supabase.from("menu_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-          
-          const seeded: MenuItem[] = [];
-          for (const item of defaultMenuItems) {
-            const { data: inserted } = await supabase
-              .from("menu_items")
-              .insert({
-                name: item.name,
-                description: item.description ?? "",
-                price: item.price ?? null,
-                category: item.category,
-                image: item.image ?? null,
-                variants: item.variants ?? [],
-                is_available: true,
-                is_featured: false,
-                stock: null,
-              })
-              .select()
-              .single();
-            if (inserted) {
-              seeded.push(mapRow(inserted));
+          const { data: existing } = await supabase.from("menu_items").select("id").limit(1);
+          if (!existing || existing.length === 0) {
+            const seeded: MenuItem[] = [];
+            for (const item of defaultMenuItems) {
+              const { data: inserted } = await supabase
+                .from("menu_items")
+                .insert({
+                  name: item.name,
+                  description: item.description ?? "",
+                  price: item.price ?? null,
+                  category: item.category,
+                  image: item.image ?? null,
+                  variants: item.variants ?? [],
+                  is_available: true,
+                  is_featured: false,
+                  stock: null,
+                })
+                .select()
+                .single();
+              if (inserted) {
+                seeded.push(mapRow(inserted));
+              }
             }
+            setItems(seeded);
+            saveLocal(seeded);
           }
-          setItems(seeded);
-          saveLocal(seeded);
         }
       } catch (e) {
         console.error("[useMenuManager] load failed:", e);

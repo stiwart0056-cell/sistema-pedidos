@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { Order } from "@/types";
 import { useRestaurantConfig } from "@/hooks/useRestaurantConfig";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,21 @@ interface OrderReceiptProps {
 
 export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
-  const { config } = useRestaurantConfig();
+  const { config, getNextNCF } = useRestaurantConfig();
+  const [ncfNumber, setNcfNumber] = useState<string | null>(null);
 
-  const handlePrint = () => {
+  const width = config.printerWidth === 80 ? 320 : 220;
+  const charsPerLine = config.printerWidth === 80 ? 48 : 32;
+  const fontSize = config.printerWidth === 80 ? 13 : 12;
+
+  const handlePrint = async () => {
+    // Generate NCF if configured
+    let ncf = null;
+    if (config.ncfPrefix && config.ncfType) {
+      ncf = await getNextNCF();
+      setNcfNumber(ncf);
+    }
+
     const printWindow = window.open("", "_blank", "width=400,height=600");
     if (!printWindow || !receiptRef.current) return;
 
@@ -31,79 +43,33 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
         <head>
           <title>Ticket - ${order.id}</title>
           <style>
+            @page { margin: 0; size: auto; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
               font-family: "Courier New", Courier, monospace;
-              font-size: 13px;
-              line-height: 1.4;
+              font-size: ${fontSize}px;
+              line-height: 1.3;
               color: #000;
               background: #fff;
-              padding: 16px;
-              max-width: 320px;
+              padding: 8px;
+              width: ${width}px;
               margin: 0 auto;
             }
-            .receipt-header {
-              text-align: center;
-              margin-bottom: 12px;
-              padding-bottom: 12px;
-              border-bottom: 1px dashed #000;
-            }
-            .receipt-title {
-              font-size: 18px;
-              font-weight: bold;
-              margin-bottom: 4px;
-            }
-            .receipt-meta {
-              font-size: 11px;
-              color: #333;
-            }
-            .receipt-section {
-              margin-bottom: 10px;
-              padding-bottom: 10px;
-              border-bottom: 1px dashed #000;
-            }
-            .receipt-row {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 3px;
-            }
-            .receipt-item-name {
-              flex: 1;
-            }
-            .receipt-item-qty {
-              width: 30px;
-              text-align: center;
-            }
-            .receipt-item-price {
-              width: 70px;
-              text-align: right;
-            }
-            .receipt-total {
-              font-size: 15px;
-              font-weight: bold;
-              margin-top: 8px;
-              padding-top: 8px;
-              border-top: 1px solid #000;
-            }
-            .receipt-footer {
-              text-align: center;
-              margin-top: 16px;
-              font-size: 11px;
-              color: #333;
-            }
-            .receipt-note {
-              font-style: italic;
-              font-size: 11px;
-              margin-top: 6px;
-              padding: 6px;
-              background: #f9f9f9;
-              border-radius: 4px;
-            }
-            .receipt-discount {
-              color: #16a34a;
-            }
+            .receipt-header { text-align: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #000; }
+            .receipt-title { font-size: ${fontSize + 4}px; font-weight: bold; margin-bottom: 2px; }
+            .receipt-meta { font-size: ${fontSize - 1}px; color: #333; }
+            .receipt-section { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed #000; }
+            .receipt-row { display: flex; justify-content: space-between; margin-bottom: 1px; }
+            .receipt-item { display: flex; justify-content: space-between; }
+            .receipt-item-name { flex: 1; word-break: break-word; }
+            .receipt-item-qty { width: 24px; text-align: center; flex-shrink: 0; }
+            .receipt-item-price { width: 60px; text-align: right; flex-shrink: 0; }
+            .receipt-total { font-size: ${fontSize + 1}px; font-weight: bold; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; }
+            .receipt-footer { text-align: center; margin-top: 12px; font-size: ${fontSize - 1}px; color: #333; }
+            .receipt-ncf { text-align: center; font-size: ${fontSize}px; font-weight: bold; margin: 4px 0; padding: 4px; border: 1px dashed #000; }
+            .receipt-divider { text-align: center; font-size: ${fontSize - 2}px; letter-spacing: 2px; margin: 4px 0; }
             @media print {
-              body { padding: 0; }
+              body { padding: 0; width: ${width}px !important; }
             }
           </style>
         </head>
@@ -114,7 +80,7 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
               setTimeout(function() {
                 window.print();
                 window.close();
-              }, 200);
+              }, 300);
             };
           </script>
         </body>
@@ -124,16 +90,36 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
   };
 
   const subtotal = order.total;
-  const taxRate = 0.18;
-  const tax = Math.round((subtotal - (order.discount || 0)) * taxRate);
-  const totalWithTax = subtotal + tax - (order.discount || 0);
+  const discount = order.discount || 0;
+  const deliveryFee = order.deliveryFee || 0;
+  const taxRate = config.taxRate ?? 0.18;
+  const taxableBase = subtotal - discount;
+  const tax = config.showTax ? Math.round(taxableBase * taxRate) : 0;
+  const total = subtotal + deliveryFee - discount + tax;
 
   const typeLabel =
     order.type === "delivery"
-      ? "🛵 Delivery"
+      ? "DELIVERY"
       : order.type === "dine-in"
-      ? `🪑 Mesa ${order.tableNumber}`
-      : "🏠 Recoger en local";
+      ? `MESA ${order.tableNumber}`
+      : "PARA LLEVAR";
+
+  // Helpers for text alignment
+  const padLine = (left: string, right: string): string => {
+    const totalLen = charsPerLine;
+    const leftLen = left.length;
+    const rightLen = right.length;
+    const spaces = totalLen - leftLen - rightLen;
+    if (spaces <= 0) return left + " " + right;
+    return left + " ".repeat(spaces) + right;
+  };
+
+  const center = (text: string): string => {
+    const spaces = Math.max(0, Math.floor((charsPerLine - text.length) / 2));
+    return " ".repeat(spaces) + text;
+  };
+
+  const divider = "-".repeat(charsPerLine);
 
   return (
     <Dialog>
@@ -153,99 +139,131 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
         <div className="px-6 pb-6">
           <div
             ref={receiptRef}
-            className="rounded-lg border border-dashed border-gray-300 bg-white p-4"
-            style={{ fontFamily: '"Courier New", Courier, monospace', fontSize: 13 }}
+            style={{
+              fontFamily: '"Courier New", Courier, monospace',
+              fontSize,
+              width,
+              margin: "0 auto",
+              background: "#fff",
+              color: "#000",
+              lineHeight: 1.3,
+            }}
           >
-            <div className="text-center mb-3 pb-3 border-b border-dashed border-gray-400">
+            {/* HEADER */}
+            <div style={{ textAlign: "center", marginBottom: 8, paddingBottom: 8, borderBottom: "1px dashed #000" }}>
               {config.logo && (
-                <img src={config.logo} alt="" className="h-12 mx-auto mb-2 object-contain" />
+                <img src={config.logo} alt="" style={{ maxHeight: 48, margin: "0 auto 4px", display: "block" }} />
               )}
-              <div className="font-bold text-lg">{config.name}</div>
-              <div className="text-xs text-gray-600 mt-1">{config.address}</div>
-              <div className="text-xs text-gray-600">Tel: {config.phone}</div>
-              {config.slogan && <div className="text-xs text-gray-500 mt-1 italic">{config.slogan}</div>}
+              <div style={{ fontSize: fontSize + 4, fontWeight: "bold" }}>{config.name}</div>
+              <div style={{ fontSize: fontSize - 1 }}>{config.address}</div>
+              <div style={{ fontSize: fontSize - 1 }}>Tel: {config.phone}</div>
+              {config.rnc && <div style={{ fontSize: fontSize - 1 }}>RNC: {config.rnc}</div>}
+              {config.slogan && <div style={{ fontSize: fontSize - 1, fontStyle: "italic" }}>{config.slogan}</div>}
             </div>
 
-            <div className="mb-3 pb-3 border-b border-dashed border-gray-400">
-              <div className="flex justify-between">
-                <span>Orden:</span>
-                <span className="font-bold">{order.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Fecha:</span>
-                <span>{new Date(order.createdAt).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tipo:</span>
-                <span>{typeLabel}</span>
-              </div>
-            </div>
-
-            {order.customer && (
-              <div className="mb-3 pb-3 border-b border-dashed border-gray-400 text-xs">
-                <div className="font-semibold mb-1">Cliente:</div>
-                <div>{order.customer.name}</div>
-                <div>📞 {order.customer.phone}</div>
-                {order.customer.address && <div>📍 {order.customer.address}</div>}
+            {/* NCF */}
+            {(ncfNumber || config.ncfType) && (
+              <div style={{ textAlign: "center", marginBottom: 6, padding: "4px 0", border: "1px dashed #000" }}>
+                <div style={{ fontSize: fontSize - 1 }}>
+                  NCF: {ncfNumber || `${config.ncfPrefix || "B01"}XXXXXXX`}
+                </div>
+                <div style={{ fontSize: fontSize - 2 }}>
+                  {config.ncfType === "01" && "Crédito Fiscal"}
+                  {config.ncfType === "02" && "Consumidor Final"}
+                  {config.ncfType === "03" && "Gastos Menores"}
+                  {config.ncfType === "04" && "Compras Informales"}
+                  {config.ncfType === "14" && "Régimen Especial"}
+                  {config.ncfType === "15" && "Comprobante Gubernamental"}
+                </div>
               </div>
             )}
 
-            <div className="mb-3 pb-3 border-b border-dashed border-gray-400">
-              <div className="flex justify-between font-semibold mb-1 text-xs uppercase tracking-wide">
-                <span className="flex-1">Descripción</span>
-                <span className="w-8 text-center">Cant</span>
-                <span className="w-16 text-right">Precio</span>
+            {/* ORDER INFO */}
+            <div style={{ marginBottom: 6, paddingBottom: 6, borderBottom: "1px dashed #000" }}>
+              <div>{padLine("Orden:", order.id.slice(-8).toUpperCase())}</div>
+              <div>{padLine("Fecha:", new Date(order.createdAt).toLocaleString("es-DO"))}</div>
+              <div>{padLine("Tipo:", typeLabel)}</div>
+              {order.tableNumber && (
+                <div>{padLine("Mesa:", String(order.tableNumber))}</div>
+              )}
+            </div>
+
+            {/* CUSTOMER */}
+            {order.customer && (
+              <div style={{ marginBottom: 6, paddingBottom: 6, borderBottom: "1px dashed #000", fontSize: fontSize - 1 }}>
+                <div style={{ fontWeight: "bold" }}>CLIENTE:</div>
+                <div>{order.customer.name}</div>
+                <div>Tel: {order.customer.phone}</div>
+                {order.customer.address && <div>{order.customer.address}</div>}
+              </div>
+            )}
+
+            {/* ITEMS */}
+            <div style={{ marginBottom: 6, paddingBottom: 6, borderBottom: "1px dashed #000" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", marginBottom: 2 }}>
+                <span style={{ flex: 1 }}>DESCRIPCION</span>
+                <span style={{ width: 24, textAlign: "center" }}>CT</span>
+                <span style={{ width: 60, textAlign: "right" }}>PRECIO</span>
               </div>
               {order.items.map((item) => (
-                <div key={item.cartId} className="flex justify-between py-0.5">
-                  <span className="flex-1">
+                <div key={item.cartId} style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ flex: 1, wordBreak: "break-word" }}>
                     {item.name}
-                    {item.variant && (
-                      <span className="text-gray-500"> ({item.variant})</span>
-                    )}
+                    {item.variant && <span style={{ fontSize: fontSize - 2 }}> ({item.variant})</span>}
                   </span>
-                  <span className="w-8 text-center">{item.quantity}</span>
-                  <span className="w-16 text-right">
-                    RD$ {(item.price * item.quantity).toLocaleString()}
+                  <span style={{ width: 24, textAlign: "center" }}>{item.quantity}</span>
+                  <span style={{ width: 60, textAlign: "right" }}>
+                    RD${(item.price * item.quantity).toLocaleString()}
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className="mb-3 pb-3 border-b border-dashed border-gray-400">
-              <div className="flex justify-between">
+            {/* TOTALS */}
+            <div style={{ marginBottom: 6, paddingBottom: 6, borderBottom: "1px dashed #000" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Subtotal:</span>
-                <span>RD$ {subtotal.toLocaleString()}</span>
+                <span>RD${subtotal.toLocaleString()}</span>
               </div>
-              {order.discount !== undefined && order.discount > 0 && (
-                <div className="flex justify-between receipt-discount">
-                  <span>Descuento ({order.couponCode}):</span>
-                  <span>-RD$ {order.discount.toLocaleString()}</span>
+              {discount > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#16a34a" }}>
+                  <span>Descuento{order.couponCode ? ` (${order.couponCode})` : ""}:</span>
+                  <span>-RD${discount.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span>ITBIS (18%):</span>
-                <span>RD$ {tax.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between font-bold text-base mt-1 pt-1 border-t border-gray-400">
+              {deliveryFee > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Delivery:</span>
+                  <span>+RD${deliveryFee.toLocaleString()}</span>
+                </div>
+              )}
+              {config.showTax && tax > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>ITBIS ({(taxRate * 100).toFixed(0)}%):</span>
+                  <span>RD${tax.toLocaleString()}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: fontSize + 1, marginTop: 4, paddingTop: 4, borderTop: "1px solid #000" }}>
                 <span>TOTAL:</span>
-                <span>RD$ {totalWithTax.toLocaleString()}</span>
+                <span>RD${total.toLocaleString()}</span>
               </div>
             </div>
 
+            {/* NOTES */}
             {order.customer?.notes && (
-              <div className="mb-3 pb-3 border-b border-dashed border-gray-400">
-                <div className="font-semibold text-xs mb-1">Nota:</div>
-                <div className="text-xs italic bg-gray-50 p-2 rounded">
-                  {order.customer.notes}
-                </div>
+              <div style={{ marginBottom: 6, paddingBottom: 6, borderBottom: "1px dashed #000", fontSize: fontSize - 1 }}>
+                <div style={{ fontWeight: "bold" }}>NOTA:</div>
+                <div>{order.customer.notes}</div>
               </div>
             )}
 
-            <div className="text-center text-xs text-gray-500 mt-2">
-              <div>¡Gracias por su preferencia!</div>
-              <div className="mt-1">{config.name}</div>
-              <div className="mt-2">--- *** ---</div>
+            {/* FOOTER */}
+            <div style={{ textAlign: "center", fontSize: fontSize - 1, marginTop: 8 }}>
+              <div>{divider}</div>
+              <div>Gracias por su preferencia!</div>
+              <div>{config.name}</div>
+              {config.rnc && <div>RNC: {config.rnc}</div>}
+              <div style={{ marginTop: 4 }}>***</div>
             </div>
           </div>
 
@@ -253,6 +271,11 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
             <Printer className="h-4 w-4" />
             Imprimir Ticket
           </Button>
+          <p className="text-xs text-center text-muted-foreground mt-2">
+            {config.printerWidth === 80
+              ? "Optimizado para impresoras 80mm (Epson TM-T20, Bixolon SRP-330)"
+              : "Optimizado para impresoras 58mm (Xprinter XP-58, Gprinter GP-58)"}
+          </p>
         </div>
       </DialogContent>
     </Dialog>
