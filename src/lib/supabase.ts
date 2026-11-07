@@ -10,7 +10,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   );
 }
 
+// Si faltan las variables, usamos un placeholder para NO romper la app en blanco.
+// La app arranca en modo offline (datos locales) hasta que se configuren.
 export const supabase = createClient(
-  SUPABASE_URL || "",
-  SUPABASE_ANON_KEY || ""
+  SUPABASE_URL || "https://placeholder.supabase.co",
+  SUPABASE_ANON_KEY || "placeholder-anon-key"
 );
