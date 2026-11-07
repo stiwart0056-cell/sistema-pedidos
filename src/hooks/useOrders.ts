@@ -43,6 +43,7 @@ function mapOrder(row: any, items: any[]): Order {
     createdAt: row.created_at,
     status: row.status,
     type: row.type,
+    paymentMethod: row.payment_method ?? undefined,
     tableId: row.table_id ?? undefined,
     tableNumber: row.table_number ?? undefined,
     customer:
@@ -165,7 +166,7 @@ export function useOrders() {
             delivery_zone_id: order.deliveryZoneId ?? null,
             final_total: order.finalTotal ?? order.total,
             tax: 0,
-            payment_method: "cash",
+            payment_method: order.paymentMethod ?? "cash",
           })
           .select()
           .single();

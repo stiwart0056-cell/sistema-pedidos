@@ -19,6 +19,7 @@ import { SettingsPage } from "@/pages/admin/SettingsPage";
 import { CouponsPage } from "@/pages/admin/CouponsPage";
 import { DeliveryZonesPage } from "@/pages/admin/DeliveryZonesPage";
 import { SalesPage } from "@/pages/admin/SalesPage";
+import { CashClosePage } from "@/pages/admin/CashClosePage";
 import { KitchenPage } from "@/pages/KitchenPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -72,6 +73,7 @@ function CustomerApp() {
       couponCode?: string;
       deliveryFee?: number;
       deliveryZoneId?: string;
+      paymentMethod?: Order["paymentMethod"];
     }) => {
       if (cart.items.length === 0) return;
       const total = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -90,6 +92,7 @@ function CustomerApp() {
         createdAt: new Date().toISOString(),
         status: "pending",
         type: options.type,
+        paymentMethod: options.paymentMethod ?? "cash",
         tableId: options.tableId,
         tableNumber: options.tableNumber,
         customer: options.customer,
@@ -164,6 +167,7 @@ function App() {
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="zones" element={<DeliveryZonesPage />} />
         <Route path="sales" element={<SalesPage />} />
+        <Route path="cash-close" element={<CashClosePage />} />
       </Route>
     </Routes>
   );

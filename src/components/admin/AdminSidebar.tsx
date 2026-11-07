@@ -11,6 +11,7 @@ import {
   Tag,
   Truck,
   DollarSign,
+  Calculator,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const nav = [
   { to: "/admin/coupons", icon: Tag, label: "Cupones" },
   { to: "/admin/zones", icon: Truck, label: "Zonas Delivery" },
   { to: "/admin/sales", icon: DollarSign, label: "Ventas" },
+  { to: "/admin/cash-close", icon: Calculator, label: "Cierre de Caja" },
   { to: "/admin/settings", icon: Settings, label: "Configuración" },
 ];
 

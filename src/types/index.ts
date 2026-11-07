@@ -36,6 +36,8 @@ export interface CustomerInfo {
 
 export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
 
+export type PaymentMethod = "cash" | "card" | "transfer";
+
 export interface Order {
   id: string;
   items: CartItem[];
@@ -48,6 +50,7 @@ export interface Order {
   createdAt: string;
   status: OrderStatus;
   type: OrderType;
+  paymentMethod?: PaymentMethod;
   tableId?: string;
   tableNumber?: number;
   customer?: CustomerInfo;
@@ -78,4 +81,29 @@ export interface DeliveryZone {
   fee: number;
   minOrderAmount?: number;
   isActive: boolean;
+}
+
+export interface CashClosing {
+  id: string;
+  /** Fecha del cierre (YYYY-MM-DD) */
+  closingDate: string;
+  /** Efectivo con el que se abrió la caja */
+  openingCash: number;
+  /** Ventas en efectivo del día */
+  cashSales: number;
+  /** Ventas con tarjeta del día */
+  cardSales: number;
+  /** Ventas por transferencia del día */
+  transferSales: number;
+  /** Total vendido (todos los métodos) */
+  totalSales: number;
+  ordersCount: number;
+  /** Lo que DEBE haber en caja: apertura + ventas en efectivo */
+  expectedCash: number;
+  /** Lo que se contó físicamente */
+  countedCash: number;
+  /** countedCash - expectedCash */
+  difference: number;
+  notes?: string;
+  createdAt: string;
 }

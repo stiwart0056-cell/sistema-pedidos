@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Menu, ShoppingCart, X, MapPin, Phone, User, Home, MessageSquare, Tag, Check, Truck } from "lucide-react";
+import { Menu, ShoppingCart, X, MapPin, Phone, User, Home, MessageSquare, Tag, Check, Truck, Banknote, CreditCard, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import type { CartItem, OrderType } from "@/types";
+import type { CartItem, OrderType, PaymentMethod } from "@/types";
 import { useTables } from "@/hooks/useTables";
 import { useRestaurantConfig } from "@/hooks/useRestaurantConfig";
 import { useCoupons } from "@/hooks/useCoupons";
@@ -35,6 +35,7 @@ interface CartDrawerProps {
     couponCode?: string;
     deliveryFee?: number;
     deliveryZoneId?: string;
+    paymentMethod?: PaymentMethod;
   }) => void;
   defaultTableId?: string;
   defaultTableNumber?: number;
@@ -64,6 +65,7 @@ export function CartDrawer({
   const [customerAddress, setCustomerAddress] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [showMap, setShowMap] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -157,6 +159,7 @@ export function CartDrawer({
       couponCode: appliedCoupon?.code,
       deliveryFee: orderType === "delivery" ? deliveryFee : undefined,
       deliveryZoneId: orderType === "delivery" ? selectedZone : undefined,
+      paymentMethod,
     });
     if (appliedCoupon) {
       incrementUses(appliedCoupon.code);
@@ -336,6 +339,31 @@ export function CartDrawer({
                         onClick={() => setOrderType(opt.key as OrderType)}
                         className={`flex flex-col items-center gap-1 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-colors ${
                           orderType === opt.key
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-white text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        <opt.icon className="h-4 w-4" />
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Payment Method Selector */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Método de pago</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: "cash", label: "Efectivo", icon: Banknote },
+                      { key: "card", label: "Tarjeta", icon: CreditCard },
+                      { key: "transfer", label: "Transfer.", icon: Smartphone },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setPaymentMethod(opt.key as PaymentMethod)}
+                        className={`flex flex-col items-center gap-1 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-colors ${
+                          paymentMethod === opt.key
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-white text-muted-foreground hover:bg-muted"
                         }`}
