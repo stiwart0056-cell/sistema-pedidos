@@ -10,9 +10,16 @@ export function CouponsPage() {
   const { coupons, addCoupon, updateCoupon, deleteCoupon } = useCoupons();
   const [showForm, setShowForm] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    code: string;
+    discountType: "percentage" | "fixed";
+    discountValue: number;
+    minOrderAmount: string;
+    maxUses: string;
+    expiresAt: string;
+  }>({
     code: "",
-    discountType: "percentage" as const,
+    discountType: "percentage",
     discountValue: 0,
     minOrderAmount: "",
     maxUses: "",

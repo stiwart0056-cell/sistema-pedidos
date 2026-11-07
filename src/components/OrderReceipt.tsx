@@ -114,11 +114,6 @@ export function OrderReceipt({ order, trigger }: OrderReceiptProps) {
     return left + " ".repeat(spaces) + right;
   };
 
-  const center = (text: string): string => {
-    const spaces = Math.max(0, Math.floor((charsPerLine - text.length) / 2));
-    return " ".repeat(spaces) + text;
-  };
-
   const divider = "-".repeat(charsPerLine);
 
   return (

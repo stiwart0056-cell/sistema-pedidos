@@ -11,34 +11,40 @@ const menuItemSchema = z.object({
   image: z.string().optional(),
 });
 
-const orderSchema = z.object({
-  id: z.string(),
-  items: z.array(
-    z.object({
-      cartId: z.string(),
-      id: z.string(),
-      name: z.string(),
-      description: z.string().optional(),
-      variant: z.string().optional(),
-      price: z.number(),
-      quantity: z.number(),
-    })
-  ),
-  total: z.number(),
-  createdAt: z.string(),
-  status: z.enum(["pending", "preparing", "ready", "delivered"]),
-  type: z.enum(["pickup", "delivery", "dine-in"]),
-  tableId: z.string().optional(),
-  tableNumber: z.number().optional(),
-  customer: z
-    .object({
-      name: z.string(),
-      phone: z.string(),
-      address: z.string().optional(),
-      notes: z.string().optional(),
-    })
-    .optional(),
-});
+const orderSchema = z
+  .object({
+    id: z.string(),
+    items: z.array(
+      z.object({
+        cartId: z.string(),
+        id: z.string(),
+        name: z.string(),
+        description: z.string().optional(),
+        variant: z.string().optional(),
+        price: z.number(),
+        quantity: z.number(),
+      })
+    ),
+    total: z.number(),
+    discount: z.number().optional(),
+    couponCode: z.string().optional(),
+    deliveryFee: z.number().optional(),
+    finalTotal: z.number().optional(),
+    createdAt: z.string(),
+    status: z.enum(["pending", "preparing", "ready", "delivered", "cancelled"]),
+    type: z.enum(["pickup", "delivery", "dine-in"]),
+    tableId: z.string().optional(),
+    tableNumber: z.number().optional(),
+    customer: z
+      .object({
+        name: z.string(),
+        phone: z.string(),
+        address: z.string().optional(),
+        notes: z.string().optional(),
+      })
+      .optional(),
+  })
+  .transform((o) => ({ ...o, finalTotal: o.finalTotal ?? o.total }));
 
 const tableSchema = z.object({
   id: z.string(),

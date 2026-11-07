@@ -288,12 +288,14 @@ export function KitchenPage() {
           <div className="flex items-center gap-2">
             {/* Filtros */}
             <div className="hidden sm:flex items-center bg-slate-100 rounded-xl p-1 gap-1">
-              {([
-                { key: "all", label: "Todos" },
-                { key: "delivery", label: "Delivery", icon: MapPin },
-                { key: "pickup", label: "Recoger", icon: Home },
-                { key: "dine-in", label: "Mesa", icon: User },
-              ] as const).map((f) => (
+              {(
+                [
+                  { key: "all", label: "Todos" },
+                  { key: "delivery", label: "Delivery", icon: MapPin },
+                  { key: "pickup", label: "Recoger", icon: Home },
+                  { key: "dine-in", label: "Mesa", icon: User },
+                ] as { key: OrderType | "all"; label: string; icon?: typeof MapPin }[]
+              ).map((f) => (
                 <Button
                   key={f.key}
                   size="sm"
@@ -328,12 +330,14 @@ export function KitchenPage() {
       {/* Mobile filter */}
       <div className="sm:hidden px-4 pt-3 pb-1">
         <div className="flex items-center bg-white rounded-xl p-1 gap-1 overflow-x-auto">
-          {([
-            { key: "all", label: "Todos" },
-            { key: "delivery", label: "Delivery", icon: MapPin },
-            { key: "pickup", label: "Recoger", icon: Home },
-            { key: "dine-in", label: "Mesa", icon: User },
-          ] as const).map((f) => (
+          {(
+            [
+              { key: "all", label: "Todos" },
+              { key: "delivery", label: "Delivery", icon: MapPin },
+              { key: "pickup", label: "Recoger", icon: Home },
+              { key: "dine-in", label: "Mesa", icon: User },
+            ] as { key: OrderType | "all"; label: string; icon?: typeof MapPin }[]
+          ).map((f) => (
             <Button
               key={f.key}
               size="sm"

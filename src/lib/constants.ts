@@ -1,4 +1,4 @@
-import { Clock, ChefHat, CheckCircle, Package, Home, MapPin, User, XCircle, AlertTriangle } from "lucide-react";
+import { Clock, ChefHat, CheckCircle, Package, Home, MapPin, User, XCircle } from "lucide-react";
 import type { OrderStatus } from "@/types";
 
 export const RESTAURANT = {
