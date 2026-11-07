@@ -10,6 +10,7 @@ import {
   LogOut,
   Tag,
   Truck,
+  DollarSign,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ const nav = [
   { to: "/admin/tables", icon: QrCode, label: "Mesas & QR" },
   { to: "/admin/coupons", icon: Tag, label: "Cupones" },
   { to: "/admin/zones", icon: Truck, label: "Zonas Delivery" },
+  { to: "/admin/sales", icon: DollarSign, label: "Ventas" },
   { to: "/admin/settings", icon: Settings, label: "Configuración" },
 ];
 

@@ -18,6 +18,7 @@ import { TablesPage } from "@/pages/admin/TablesPage";
 import { SettingsPage } from "@/pages/admin/SettingsPage";
 import { CouponsPage } from "@/pages/admin/CouponsPage";
 import { DeliveryZonesPage } from "@/pages/admin/DeliveryZonesPage";
+import { SalesPage } from "@/pages/admin/SalesPage";
 import { KitchenPage } from "@/pages/KitchenPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -162,6 +163,7 @@ function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="zones" element={<DeliveryZonesPage />} />
+        <Route path="sales" element={<SalesPage />} />
       </Route>
     </Routes>
   );
