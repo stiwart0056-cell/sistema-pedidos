@@ -9,6 +9,7 @@ import {
   Download,
   Calendar,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BarChart,
@@ -24,6 +25,7 @@ import {
   Legend,
 } from "recharts";
 import { Button } from "@/components/ui/button";
+import { OrderReceipt } from "@/components/OrderReceipt";
 import type { Order } from "@/types";
 
 type Period = "today" | "yesterday" | "7d" | "month" | "all";
@@ -91,6 +93,16 @@ export function SalesPage() {
 
   const sales = useMemo(
     () => orders.filter((o) => o.status === "delivered" && inPeriod(o, period)),
+    [orders, period]
+  );
+
+  // Pedidos del período que aún NO cuentan como venta (ni entregados ni cancelados)
+  const notDelivered = useMemo(
+    () =>
+      orders.filter(
+        (o) =>
+          o.status !== "delivered" && o.status !== "cancelled" && inPeriod(o, period)
+      ),
     [orders, period]
   );
 
@@ -209,6 +221,23 @@ export function SalesPage() {
           </button>
         ))}
       </div>
+
+      {/* Aviso: pedidos del período que aún no cuentan como venta */}
+      {notDelivered.length > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-700">
+              {notDelivered.length} pedido{notDelivered.length > 1 ? "s" : ""} de este período
+              aún no cuenta{notDelivered.length > 1 ? "n" : ""} como venta
+            </p>
+            <p className="text-amber-600">
+              Márcalos como <strong>Entregados</strong> en la sección Pedidos (botón
+              "Entregar") para que aparezcan aquí y puedas facturarlos.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -360,7 +389,8 @@ export function SalesPage() {
                     <th className="py-2 pr-4 font-medium">Tipo</th>
                     <th className="py-2 pr-4 font-medium">Cliente</th>
                     <th className="py-2 pr-4 text-center font-medium">Items</th>
-                    <th className="py-2 text-right font-medium">Total</th>
+                    <th className="py-2 pr-4 text-right font-medium">Total</th>
+                    <th className="py-2 text-right font-medium">Factura</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -383,8 +413,23 @@ export function SalesPage() {
                       <td className="py-2.5 pr-4 text-center">
                         {o.items.reduce((s, i) => s + i.quantity, 0)}
                       </td>
-                      <td className="py-2.5 text-right font-bold text-primary">
+                      <td className="py-2.5 pr-4 text-right font-bold text-primary">
                         {fmtMoney(o.finalTotal)}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <OrderReceipt
+                          order={o}
+                          trigger={
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 rounded-full"
+                            >
+                              <Receipt className="h-3.5 w-3.5" />
+                              Facturar
+                            </Button>
+                          }
+                        />
                       </td>
                     </tr>
                   ))}
