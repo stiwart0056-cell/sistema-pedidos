@@ -148,30 +148,70 @@ export function useOrders() {
       if (!online) return;
 
       try {
-        const { data: orderRow, error } = await supabase
+        const fullPayload = {
+          status: order.status,
+          type: order.type,
+          table_id: order.tableId ?? null,
+          table_number: order.tableNumber ?? null,
+          customer_name: order.customer?.name ?? null,
+          customer_phone: order.customer?.phone ?? null,
+          customer_address: order.customer?.address ?? null,
+          customer_notes: order.customer?.notes ?? null,
+          total: order.total,
+          discount: order.discount ?? null,
+          coupon_code: order.couponCode ?? null,
+          delivery_fee: order.deliveryFee ?? null,
+          delivery_zone_id: order.deliveryZoneId ?? null,
+          final_total: order.finalTotal ?? order.total,
+          tax: 0,
+          payment_method: order.paymentMethod ?? "cash",
+        };
+
+        let orderRow: any = null;
+
+        // Intento 1: insert completo con todos los campos
+        const first = await supabase
           .from("orders")
-          .insert({
-            status: order.status,
-            type: order.type,
-            table_id: order.tableId ?? null,
-            table_number: order.tableNumber ?? null,
-            customer_name: order.customer?.name ?? null,
-            customer_phone: order.customer?.phone ?? null,
-            customer_address: order.customer?.address ?? null,
-            customer_notes: order.customer?.notes ?? null,
-            total: order.total,
-            discount: order.discount ?? null,
-            coupon_code: order.couponCode ?? null,
-            delivery_fee: order.deliveryFee ?? null,
-            delivery_zone_id: order.deliveryZoneId ?? null,
-            final_total: order.finalTotal ?? order.total,
-            tax: 0,
-            payment_method: order.paymentMethod ?? "cash",
-          })
+          .insert(fullPayload)
           .select()
           .single();
 
-        if (error || !orderRow) return;
+        if (first.error) {
+          console.error(
+            "[useOrders] insert completo falló, reintentando con payload mínimo:",
+            first.error.message
+          );
+          // Intento 2: solo columnas base (por si faltan columnas opcionales en el schema)
+          const minimal: any = {
+            status: order.status,
+            type: order.type,
+            total: order.total,
+            tax: 0,
+            payment_method: order.paymentMethod ?? "cash",
+          };
+          if (order.tableId !== undefined) minimal.table_id = order.tableId;
+          if (order.tableNumber !== undefined) minimal.table_number = order.tableNumber;
+          if (order.customer?.name) minimal.customer_name = order.customer.name;
+          if (order.customer?.phone) minimal.customer_phone = order.customer.phone;
+          if (order.customer?.address) minimal.customer_address = order.customer.address;
+          if (order.customer?.notes) minimal.customer_notes = order.customer.notes;
+
+          const second = await supabase
+            .from("orders")
+            .insert(minimal)
+            .select()
+            .single();
+
+          if (second.error) {
+            console.error("[useOrders] insert mínimo también falló:", second.error.message);
+            return;
+          }
+          orderRow = second.data;
+        } else {
+          orderRow = first.data;
+        }
+
+        if (!orderRow) return;
 
         const itemsPayload = order.items.map((it) => ({
           order_id: orderRow.id,
